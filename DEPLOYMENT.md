@@ -2,7 +2,7 @@
 
 ## Current deployment architecture
 
-The repository contains a static frontend plus a Node.js backend. GitHub Pages can host the static frontend, but it does **not** run the Node.js backend. The backend therefore requires a separate Node-capable hosting service and a managed SQL database for full production functionality.
+The repository contains a static frontend plus a Node.js backend. GitHub Pages can host the static frontend, but it does **not** run the Node.js backend. The backend therefore requires a separate Node-capable hosting service and a managed PostgreSQL database for full production functionality.
 
 ### Frontend
 
@@ -16,7 +16,9 @@ GitHub Pages settings:
 4. Save if GitHub asks for confirmation.
 5. Pushes to `main` will then deploy the frontend automatically.
 
-The repository currently contains `CNAME` with `www.schoolssolutions.com`. The custom domain must also be configured at the DNS provider. For a `www` subdomain, create a CNAME record pointing to `hahmad76.github.io`, then configure the same custom domain in GitHub Pages. DNS changes can take time to propagate.
+### Custom domain
+
+No `CNAME` file is currently present on `main`. Do not treat a custom domain as configured until the domain is deliberately configured in GitHub Pages and at the DNS provider. If `www.schoolssolutions.com` is the intended production domain, configure it in GitHub Pages and create the corresponding DNS record before adding the `CNAME` file.
 
 ## Full production requirements
 
@@ -31,7 +33,7 @@ The repository currently contains `CNAME` with `www.schoolssolutions.com`. The c
 
 ## Backend
 
-The backend now selects PostgreSQL when `DATABASE_URL` is present and refuses a production startup without a configured SQL client/database. Development can use the JSON storage adapter.
+The backend selects PostgreSQL when `DATABASE_URL` is present and refuses a production startup without a configured SQL client/database. Development can use the JSON storage adapter. Startup applies the relational schema when PostgreSQL is configured.
 
 Build from the repository root:
 
@@ -61,7 +63,7 @@ Terminate TLS at the reverse proxy and forward requests to the backend on port 3
 
 ## Authentication and sessions
 
-Administrator login is disabled until `ADMIN_PASSWORD_HASH` is configured. Authentication uses cryptographically random bearer tokens with persistent session storage when the active persistence adapter supports it.
+Administrator login is disabled until `ADMIN_PASSWORD_HASH` is configured. Authentication uses scrypt password verification and cryptographically random bearer session tokens. Session persistence uses the active persistence adapter.
 
 ## Database migration
 
@@ -70,3 +72,7 @@ Administrator login is disabled until `ADMIN_PASSWORD_HASH` is configured. Authe
 ## Notifications
 
 Notifications are persisted through the active database adapter. Email, SMS, WhatsApp or push delivery providers should be connected as separate adapters so provider credentials never enter frontend code.
+
+## Production readiness note
+
+A successful GitHub Pages deployment proves only that the static frontend is published. Full production readiness additionally requires the separately hosted backend, PostgreSQL database, HTTPS, exact CORS configuration, secure administrator credentials, backups and end-to-end testing.
