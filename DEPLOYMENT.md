@@ -1,24 +1,37 @@
 # SCHOOLS SOLUTIONS HUB PAKISTAN — Deployment & Security
 
-## Current implementation
+## Current deployment architecture
 
-The repository now contains a frontend-to-API integration layer and a Node.js backend foundation.
-The backend supports public form submissions, quote requests, service orders, administrator authentication,
-administrative collection access, notifications, audit records, rate limiting and security response headers.
+The repository contains a static frontend plus a Node.js backend. GitHub Pages can host the static frontend, but it does **not** run the Node.js backend. The backend therefore requires a separate Node-capable hosting service and a managed SQL database for full production functionality.
 
-## Production requirements
+### Frontend
 
-1. Run Node.js 20+.
-2. Set `CORS_ORIGIN` to the exact production frontend origin. Do not use `*` in production.
-3. Set `ADMIN_PASSWORD_HASH` to a strong scrypt password hash. Never commit a plaintext password.
-4. Put the API behind HTTPS and a reverse proxy/load balancer.
-5. Persist `/app/data` outside the container when the JSON adapter is used.
-6. Replace the JSON adapter with the relational schema in `backend/data/schema.sql` before high-volume production use.
-7. Keep authentication secrets and runtime configuration in the deployment secret manager.
-8. Back up the database/storage and audit logs.
-9. Restrict administrative access and monitor authentication failures.
+GitHub Pages deployment is configured through `.github/workflows/pages.yml` and publishes the public frontend files from `main`.
 
-## Docker
+GitHub Pages settings:
+
+1. Open the repository `hahmad76/myWebsite`.
+2. Open **Settings** → **Pages**.
+3. Under **Build and deployment → Source**, select **GitHub Actions**.
+4. Save if GitHub asks for confirmation.
+5. Pushes to `main` will then deploy the frontend automatically.
+
+The repository currently contains `CNAME` with `www.schoolssolutions.com`. The custom domain must also be configured at the DNS provider. For a `www` subdomain, create a CNAME record pointing to `hahmad76.github.io`, then configure the same custom domain in GitHub Pages. DNS changes can take time to propagate.
+
+## Full production requirements
+
+1. Run Node.js 20+ for the backend.
+2. Set `DATABASE_URL` to a managed PostgreSQL database in production.
+3. Set `CORS_ORIGIN` to the exact production frontend origin. Do not use `*` in production.
+4. Set `ADMIN_PASSWORD_HASH` to a strong scrypt password hash. Never commit a plaintext password.
+5. Put the API behind HTTPS and a reverse proxy/load balancer.
+6. Keep authentication secrets and runtime configuration in the deployment secret manager.
+7. Back up the database and audit logs.
+8. Restrict administrative access and monitor authentication failures.
+
+## Backend
+
+The backend now selects PostgreSQL when `DATABASE_URL` is present and refuses a production startup without a configured SQL client/database. Development can use the JSON storage adapter.
 
 Build from the repository root:
 
@@ -26,27 +39,34 @@ Build from the repository root:
 docker build -f backend/Dockerfile -t schools-solutions-hub-backend .
 ```
 
-Run with a persistent data volume and environment configuration supplied by the deployment platform.
+Run with environment configuration supplied by the deployment platform.
+
+## Frontend/API connection
+
+The frontend uses `window.SSHP_API_BASE || "/api"`. When the API is hosted on a different origin from GitHub Pages, the frontend must be configured with the HTTPS backend URL before production forms can work cross-origin.
+
+Example:
+
+```html
+<script>
+  window.SSHP_API_BASE = "https://api.example.com/api";
+</script>
+```
+
+That configuration must be placed before `script.js` loads. The final production API origin must be allowed by `CORS_ORIGIN`.
 
 ## Reverse proxy
 
-Terminate TLS at the reverse proxy and forward requests to the backend on port 3000. Preserve the
-original client IP only through a trusted proxy configuration; do not trust arbitrary public
-`X-Forwarded-For` headers.
+Terminate TLS at the reverse proxy and forward requests to the backend on port 3000. Preserve the original client IP only through a trusted proxy configuration; do not trust arbitrary public `X-Forwarded-For` headers.
 
-## Authentication
+## Authentication and sessions
 
-Admin login is disabled until `ADMIN_PASSWORD_HASH` is configured. The current session implementation
-uses signed-random bearer tokens held in process memory. For multi-instance production deployment,
-move sessions to a shared durable session store before enabling multiple backend replicas.
+Administrator login is disabled until `ADMIN_PASSWORD_HASH` is configured. Authentication uses cryptographically random bearer tokens with persistent session storage when the active persistence adapter supports it.
 
-## Database migration path
+## Database migration
 
-The current adapter is intentionally dependency-free for the implementation/testing foundation.
-`backend/data/schema.sql` defines the relational target model. A managed PostgreSQL/MySQL deployment
-should become the production persistence layer before scaling beyond the foundation stage.
+`backend/data/schema.sql` is the relational target schema. `backend/src/migrations.js` provides schema application and JSON-to-SQL migration tooling.
 
 ## Notifications
 
-Notifications are currently persisted as internal records. Email, SMS, WhatsApp or push delivery
-providers should be connected as separate adapters so provider credentials never enter frontend code.
+Notifications are persisted through the active database adapter. Email, SMS, WhatsApp or push delivery providers should be connected as separate adapters so provider credentials never enter frontend code.
