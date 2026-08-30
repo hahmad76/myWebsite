@@ -123,6 +123,14 @@ CREATE TABLE notifications (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE sessions (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  role TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE audit_log (
   id TEXT PRIMARY KEY,
   action TEXT NOT NULL,
