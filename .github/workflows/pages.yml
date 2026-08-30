@@ -27,10 +27,23 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare frontend artifact
+        run: |
+          set -e
+          rm -rf _site
+          mkdir -p _site
+          cp index.html _site/
+          cp styles.css _site/
+          cp script.js _site/
+          cp admin.html _site/
+          if [ -f validation.js ]; then cp validation.js _site/; fi
+          if [ -d assets ]; then cp -R assets _site/assets; fi
+          touch _site/.nojekyll
+
       - name: Upload website artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment
