@@ -13,6 +13,7 @@ const EMPTY_STORE = {
   resources: [],
   notifications: [],
   users: [],
+  sessions: [],
   auditLog: []
 };
 
