@@ -14,6 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backendRoot = path.resolve(__dirname, "..");
 
 const config = {
+  nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 3000),
   host: process.env.HOST || "0.0.0.0",
   corsOrigin: process.env.CORS_ORIGIN || "*",
@@ -115,6 +116,9 @@ function allowedAdminPatch(body) {
 
 export function createApp({ storage, persistence, configOverride = {} } = {}) {
   const cfg = { ...config, ...configOverride };
+  if (cfg.nodeEnv === "production" && (!cfg.corsOrigin || cfg.corsOrigin === "*")) {
+    throw new Error("Production requires an explicit CORS_ORIGIN; wildcard CORS is not permitted");
+  }
   const store = persistence || storage || createStorage(cfg.dataFile);
   const db = store.list && store.append && !store.collections ? createDatabaseAdapter(store) : store;
   const persistenceMode = db.collections?.sessions ? "sql" : "json";
