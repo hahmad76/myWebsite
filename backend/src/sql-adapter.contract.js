@@ -1,5 +1,5 @@
 // Production SQL adapter contract.
-// Keep the application independent from a particular SQL driver/provider.
+// Application code depends only on these repository operations.
 
 export function assertSqlAdapter(adapter) {
   const required = ["list", "append", "replace", "update"];
@@ -21,5 +21,6 @@ export const SQL_COLLECTION_MAP = Object.freeze({
   resources: "resources",
   notifications: "notifications",
   users: "users",
+  sessions: "sessions",
   auditLog: "audit_log"
 });
