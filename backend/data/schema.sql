@@ -1,7 +1,7 @@
 -- Production relational target schema for SCHOOLS SOLUTIONS HUB PAKISTAN.
--- The current runtime uses the storage adapter; this schema is the migration target.
+-- Safe to apply repeatedly during application startup.
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE users (
   updated_at TEXT
 );
 
-CREATE TABLE service_requests (
+CREATE TABLE IF NOT EXISTS service_requests (
   id TEXT PRIMARY KEY,
   service TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE service_requests (
   updated_at TEXT
 );
 
-CREATE TABLE teacher_interests (
+CREATE TABLE IF NOT EXISTS teacher_interests (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   phone TEXT NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE teacher_interests (
   updated_at TEXT
 );
 
-CREATE TABLE school_requirements (
+CREATE TABLE IF NOT EXISTS school_requirements (
   id TEXT PRIMARY KEY,
   school TEXT NOT NULL,
   contact TEXT NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE school_requirements (
   updated_at TEXT
 );
 
-CREATE TABLE content_submissions (
+CREATE TABLE IF NOT EXISTS content_submissions (
   id TEXT PRIMARY KEY,
   title TEXT,
   category TEXT,
@@ -63,7 +63,7 @@ CREATE TABLE content_submissions (
   updated_at TEXT
 );
 
-CREATE TABLE resources (
+CREATE TABLE IF NOT EXISTS resources (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   category TEXT,
@@ -73,7 +73,7 @@ CREATE TABLE resources (
   updated_at TEXT
 );
 
-CREATE TABLE announcements (
+CREATE TABLE IF NOT EXISTS announcements (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   category TEXT,
@@ -83,7 +83,7 @@ CREATE TABLE announcements (
   updated_at TEXT
 );
 
-CREATE TABLE quotes (
+CREATE TABLE IF NOT EXISTS quotes (
   id TEXT PRIMARY KEY,
   service_request_id TEXT,
   customer_name TEXT NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE quotes (
   updated_at TEXT
 );
 
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
   quote_id TEXT,
   customer_name TEXT NOT NULL,
@@ -112,7 +112,7 @@ CREATE TABLE orders (
   updated_at TEXT
 );
 
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -123,7 +123,7 @@ CREATE TABLE notifications (
   created_at TEXT NOT NULL
 );
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL,
   role TEXT NOT NULL,
@@ -131,7 +131,7 @@ CREATE TABLE sessions (
   created_at TEXT NOT NULL
 );
 
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
   id TEXT PRIMARY KEY,
   action TEXT NOT NULL,
   entity_id TEXT,
