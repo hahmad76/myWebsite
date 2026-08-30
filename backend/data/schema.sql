@@ -1,5 +1,5 @@
--- Production database target schema for SCHOOLS SOLUTIONS HUB PAKISTAN.
--- The current runtime uses the storage adapter; this schema defines the relational target.
+-- Production relational target schema for SCHOOLS SOLUTIONS HUB PAKISTAN.
+-- The current runtime uses the storage adapter; this schema is the migration target.
 
 CREATE TABLE users (
   id TEXT PRIMARY KEY,
@@ -20,6 +20,65 @@ CREATE TABLE service_requests (
   requirement TEXT NOT NULL,
   action TEXT,
   status TEXT NOT NULL DEFAULT 'received',
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+
+CREATE TABLE teacher_interests (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  qualification TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  opportunity TEXT NOT NULL,
+  details TEXT,
+  status TEXT NOT NULL DEFAULT 'received',
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+
+CREATE TABLE school_requirements (
+  id TEXT PRIMARY KEY,
+  school TEXT NOT NULL,
+  contact TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  location TEXT NOT NULL,
+  type TEXT NOT NULL,
+  details TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'received',
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+
+CREATE TABLE content_submissions (
+  id TEXT PRIMARY KEY,
+  title TEXT,
+  category TEXT,
+  description TEXT,
+  name TEXT,
+  email TEXT,
+  phone TEXT,
+  status TEXT NOT NULL DEFAULT 'received',
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+
+CREATE TABLE resources (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  category TEXT,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'published',
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+
+CREATE TABLE announcements (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  category TEXT,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'published',
   created_at TEXT NOT NULL,
   updated_at TEXT
 );
