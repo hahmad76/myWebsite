@@ -115,7 +115,7 @@ export function createApp({ storage, configOverride = {} } = {}) {
   const cfg = { ...config, ...configOverride };
   const store = storage || createStorage(cfg.dataFile);
   const db = createDatabaseAdapter(store);
-  const auth = createAuth(cfg);
+  const auth = createAuth({ ...cfg, storage: store });
   const notifications = createNotificationService(store);
   const allowRequest = createRateLimiter(cfg.rateWindowMs, cfg.rateMax);
   const requireAdmin = req => auth.authenticate(req);
@@ -135,16 +135,16 @@ export function createApp({ storage, configOverride = {} } = {}) {
       if (req.method === "GET" && url.pathname === "/api/services") return json(res, 200, { success: true, data: SERVICES }, origin);
 
       if (req.method === "POST" && url.pathname === "/api/auth/login") {
-        const result = auth.login(await readJson(req, cfg.maxBodyBytes));
+        const result = await auth.login(await readJson(req, cfg.maxBodyBytes));
         if (!result) return json(res, 401, { success: false, error: "Invalid administrator credentials or authentication is not configured." }, origin);
         return json(res, 200, { success: true, data: result }, origin);
       }
       if (req.method === "POST" && url.pathname === "/api/auth/logout") {
-        auth.logout(req);
+        await auth.logout(req);
         return json(res, 200, { success: true }, origin);
       }
       if (req.method === "GET" && url.pathname === "/api/auth/me") {
-        const user = requireAdmin(req);
+        const user = await requireAdmin(req);
         if (!user) return json(res, 401, { success: false, error: "Authentication required" }, origin);
         return json(res, 200, { success: true, data: { username: user.username, role: user.role, expiresAt: new Date(user.expiresAt).toISOString() } }, origin);
       }
@@ -156,7 +156,7 @@ export function createApp({ storage, configOverride = {} } = {}) {
       }
 
       if (url.pathname.startsWith("/api/admin/")) {
-        const user = requireAdmin(req);
+        const user = await requireAdmin(req);
         if (!user) return json(res, 401, { success: false, error: "Administrator authentication required" }, origin);
 
         if (req.method === "GET" && url.pathname === "/api/admin/dashboard") {
