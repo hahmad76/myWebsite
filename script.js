@@ -52,28 +52,58 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const storageKey = "sshp_frontend_submissions";
-  const saveSubmission = (type, data) => {
-    const existing = JSON.parse(localStorage.getItem(storageKey) || "[]");
-    existing.push({type, data, createdAt: new Date().toISOString()});
-    localStorage.setItem(storageKey, JSON.stringify(existing));
+  // The API is same-origin by default. Set window.SSHP_API_BASE before this
+  // script loads when the API is hosted on another domain.
+  const API_BASE = (window.SSHP_API_BASE || "/api").replace(/\/$/, "");
+
+  const endpointFor = type => ({
+    "Service Request": "/service-requests",
+    "Teacher Career Interest": "/teacher-interests",
+    "Private School Requirement": "/school-requirements",
+    "Community Content Contribution": "/content-submissions"
+  }[type] || "/submissions");
+
+  const submitToBackend = async (type, data) => {
+    const response = await fetch(`${API_BASE}${endpointFor(type)}`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(type === "Website Form" ? {type, data} : data)
+    });
+    let payload = {};
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const detail = Array.isArray(payload.details) ? ` ${payload.details.join("; ")}` : "";
+      throw new Error((payload.error || "The server could not process the submission.") + detail);
+    }
+    return payload;
   };
 
   document.querySelectorAll(".interaction-form").forEach(form => {
-    form.addEventListener("submit", e => {
+    form.addEventListener("submit", async e => {
       e.preventDefault();
       const message = form.querySelector(".form-message");
+      const type = form.dataset.type || "Website Form";
       const data = Object.fromEntries(new FormData(form).entries());
-      saveSubmission(form.dataset.type || "Website Form", data);
+
       if (message) {
-        message.textContent = "Thank you. Your request has been recorded in this browser. Live account, database and admin processing will be connected in the backend phase.";
+        message.textContent = "Submitting securely…";
+        message.removeAttribute("data-error");
       }
-      form.reset();
-      if (selectedService) selectedService.value = "";
+
+      try {
+        await submitToBackend(type, data);
+        if (message) message.textContent = "Thank you. Your request has been received successfully.";
+        form.reset();
+        if (selectedService) selectedService.value = "";
+      } catch (error) {
+        if (message) {
+          message.textContent = `Unable to submit right now. ${error.message}`;
+          message.setAttribute("data-error", "true");
+        }
+      }
     });
   });
 
-  // Keep the active navigation item aligned with the visible major section.
   const sections = [...document.querySelectorAll("main section[id]")];
   const navLinks = [...document.querySelectorAll(".main-nav a")];
   const observer = new IntersectionObserver(entries => {
