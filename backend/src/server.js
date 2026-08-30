@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createStorage } from "./storage.js";
 import { createDatabaseAdapter } from "./database.js";
+import { createPersistence } from "./database-config.js";
+import { applySchema } from "./migrations.js";
 import { createAuth } from "./auth.js";
 import { createNotificationService } from "./notifications.js";
 import { sanitizeData, validateSubmission } from "./validation.js";
@@ -111,12 +113,14 @@ function allowedAdminPatch(body) {
   return Object.fromEntries(Object.entries(body).filter(([key]) => allowed.includes(key)));
 }
 
-export function createApp({ storage, configOverride = {} } = {}) {
+export function createApp({ storage, persistence, configOverride = {} } = {}) {
   const cfg = { ...config, ...configOverride };
-  const store = storage || createStorage(cfg.dataFile);
-  const db = createDatabaseAdapter(store);
-  const auth = createAuth({ ...cfg, storage: store });
-  const notifications = createNotificationService(store);
+  const store = persistence || storage || createStorage(cfg.dataFile);
+  const db = store.list && store.append && !store.collections
+    ? createDatabaseAdapter(store)
+    : store;
+  const auth = createAuth({ ...cfg, storage: db });
+  const notifications = createNotificationService(db);
   const allowRequest = createRateLimiter(cfg.rateWindowMs, cfg.rateMax);
   const requireAdmin = req => auth.authenticate(req);
 
@@ -129,8 +133,9 @@ export function createApp({ storage, configOverride = {} } = {}) {
 
     try {
       if (req.method === "GET" && url.pathname === "/api/health") {
-        await store.ensureFile();
-        return json(res, 200, { success: true, service: "SCHOOLS SOLUTIONS HUB PAKISTAN API", status: "ok", version: "1.0.0", timestamp: new Date().toISOString() }, origin);
+        if (db.ensureFile) await db.ensureFile();
+        if (db.query) await db.list("users");
+        return json(res, 200, { success: true, service: "SCHOOLS SOLUTIONS HUB PAKISTAN API", status: "ok", version: "1.0.0", persistence: db.query ? "sql" : "json", timestamp: new Date().toISOString() }, origin);
       }
       if (req.method === "GET" && url.pathname === "/api/services") return json(res, 200, { success: true, data: SERVICES }, origin);
 
@@ -241,14 +246,26 @@ export function createApp({ storage, configOverride = {} } = {}) {
     }
   }
 
-  return { handler, store, db, auth };
+  return { handler, store: db, db, auth };
 }
 
 export async function startServer() {
-  const app = createApp();
-  await app.store.ensureFile();
+  let sqlClient = null;
+  let pool = null;
+  if (process.env.DATABASE_URL) {
+    const { Pool } = await import("pg");
+    pool = new Pool({ connectionString: process.env.DATABASE_URL, max: Number(process.env.DB_POOL_MAX || 10), idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 30000) });
+    await pool.query("SELECT 1");
+    await applySchema(pool);
+    sqlClient = pool;
+  }
+
+  const persistence = createPersistence({ env: process.env, sqlClient });
+  const app = createApp({ persistence });
+  if (persistence.ensureFile) await persistence.ensureFile();
   const server = http.createServer(app.handler);
-  server.listen(config.port, config.host, () => console.log(`SSHP backend listening on http://${config.host}:${config.port}`));
+  server.on("close", async () => { if (pool) await pool.end(); });
+  server.listen(config.port, config.host, () => console.log(`SSHP backend listening on http://${config.host}:${config.port} using ${process.env.DATABASE_URL ? "SQL" : "JSON"} persistence`));
   return server;
 }
 
