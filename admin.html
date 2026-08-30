@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SSHP Administration</title>
+  <style>
+    body{font-family:system-ui,sans-serif;max-width:1200px;margin:0 auto;padding:24px;background:#f6f7f9;color:#17202a}button,input{padding:10px;border:1px solid #ccd2d8;border-radius:6px}button{cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.card{background:white;padding:16px;border-radius:10px;box-shadow:0 1px 4px #0001;margin:12px 0}.hidden{display:none}.error{color:#a00}.row{display:flex;gap:8px;flex-wrap:wrap}.table{overflow:auto}.item{border-top:1px solid #eee;padding:12px 0}
+  </style>
+</head>
+<body>
+  <h1>SCHOOLS SOLUTIONS HUB PAKISTAN</h1>
+  <p>Administration Console</p>
+
+  <section id="login" class="card">
+    <h2>Administrator Login</h2>
+    <form id="login-form" class="row">
+      <input id="username" autocomplete="username" placeholder="Username" required>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Password" required>
+      <button>Sign in</button>
+    </form>
+    <p id="login-message" class="error"></p>
+  </section>
+
+  <main id="dashboard" class="hidden">
+    <div class="row"><strong id="identity"></strong><button id="logout">Sign out</button></div>
+    <section class="grid" id="counts"></section>
+    <section class="card">
+      <h2>Notifications</h2><div id="notifications"></div>
+    </section>
+    <section class="card">
+      <h2>Records</h2>
+      <div class="row" id="collection-buttons"></div>
+      <div id="records"></div>
+    </section>
+  </main>
+
+<script>
+(() => {
+  const API = (window.SSHP_API_BASE || "/api").replace(/\/$/, "");
+  let token = sessionStorage.getItem("sshp_admin_token") || "";
+  const collections = ["serviceRequests","teacherInterests","schoolRequirements","contentSubmissions","submissions","quotes","orders","announcements","resources"];
+  const labels = Object.fromEntries(collections.map(x => [x, x.replace(/([A-Z])/g," $1").replace(/^./,x=>x.toUpperCase())]));
+  const $ = id => document.getElementById(id);
+  const api = async (path, options={}) => {
+    options.headers = {...options.headers, ...(token ? {Authorization:`Bearer ${token}`} : {})};
+    const r = await fetch(API + path, options);
+    const data = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`);
+    return data;
+  };
+  const renderCounts = counts => {
+    $("counts").innerHTML = Object.entries(counts).map(([key,value]) => `<div class="card"><strong>${labels[key] || key}</strong><div>${value}</div></div>`).join("");
+  };
+  const renderRecords = rows => {
+    $("records").innerHTML = rows.length ? rows.map(row => `<div class="item"><strong>${row.id || ""}</strong><pre>${escapeHtml(JSON.stringify(row,null,2))}</pre></div>`).join("") : "<p>No records.</p>";
+  };
+  const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+  async function loadDashboard(){
+    const result = await api("/admin/dashboard");
+    $("login").classList.add("hidden"); $("dashboard").classList.remove("hidden");
+    $("identity").textContent = "Signed in as administrator";
+    renderCounts(result.data.counts);
+    $("collection-buttons").innerHTML = collections.map(c => `<button data-c="${c}">${labels[c]}</button>`).join("");
+    document.querySelectorAll("#collection-buttons button").forEach(b => b.onclick = async () => { const r = await api(`/admin/collections/${b.dataset.c}`); renderRecords(r.data); });
+    const n = await api("/admin/notifications");
+    $("notifications").innerHTML = n.data.length ? n.data.map(x => `<div class="item"><strong>${escapeHtml(x.title)}</strong><div>${escapeHtml(x.message)}</div></div>`).join("") : "<p>No notifications.</p>";
+  }
+  $("login-form").onsubmit = async e => { e.preventDefault(); $("login-message").textContent=""; try { const r=await api("/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:$("username").value,password:$("password").value})}); token=r.data.token; sessionStorage.setItem("sshp_admin_token",token); await loadDashboard(); } catch(err){ $("login-message").textContent=err.message; } };
+  $("logout").onclick = async () => { try { await api("/auth/logout",{method:"POST"}); } catch {} token=""; sessionStorage.removeItem("sshp_admin_token"); location.reload(); };
+  if(token) loadDashboard().catch(() => { token=""; sessionStorage.removeItem("sshp_admin_token"); });
+})();
+</script>
+</body>
+</html>
