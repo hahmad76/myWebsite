@@ -7,8 +7,12 @@ const EMPTY_STORE = {
   schoolRequirements: [],
   contentSubmissions: [],
   submissions: [],
+  quotes: [],
+  orders: [],
   announcements: [],
   resources: [],
+  notifications: [],
+  users: [],
   auditLog: []
 };
 
@@ -21,11 +25,8 @@ export function createStorage(filePath) {
 
   async function ensureFile() {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    try {
-      await fs.access(filePath);
-    } catch {
-      await fs.writeFile(filePath, JSON.stringify(cloneEmptyStore(), null, 2), "utf8");
-    }
+    try { await fs.access(filePath); }
+    catch { await fs.writeFile(filePath, JSON.stringify(cloneEmptyStore(), null, 2), "utf8"); }
   }
 
   async function read() {
@@ -54,10 +55,20 @@ export function createStorage(filePath) {
     return record;
   }
 
+  async function replace(collection, records) {
+    writeChain = writeChain.then(async () => {
+      const store = await read();
+      store[collection] = Array.isArray(records) ? records : [];
+      await write(store);
+    });
+    await writeChain;
+    return records;
+  }
+
   async function list(collection) {
     const store = await read();
     return Array.isArray(store[collection]) ? store[collection] : [];
   }
 
-  return { ensureFile, read, write, append, list };
+  return { ensureFile, read, write, append, replace, list };
 }
