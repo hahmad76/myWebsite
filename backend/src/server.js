@@ -116,9 +116,8 @@ function allowedAdminPatch(body) {
 export function createApp({ storage, persistence, configOverride = {} } = {}) {
   const cfg = { ...config, ...configOverride };
   const store = persistence || storage || createStorage(cfg.dataFile);
-  const db = store.list && store.append && !store.collections
-    ? createDatabaseAdapter(store)
-    : store;
+  const db = store.list && store.append && !store.collections ? createDatabaseAdapter(store) : store;
+  const persistenceMode = db.collections?.sessions ? "sql" : "json";
   const auth = createAuth({ ...cfg, storage: db });
   const notifications = createNotificationService(db);
   const allowRequest = createRateLimiter(cfg.rateWindowMs, cfg.rateMax);
@@ -134,8 +133,8 @@ export function createApp({ storage, persistence, configOverride = {} } = {}) {
     try {
       if (req.method === "GET" && url.pathname === "/api/health") {
         if (db.ensureFile) await db.ensureFile();
-        if (db.query) await db.list("users");
-        return json(res, 200, { success: true, service: "SCHOOLS SOLUTIONS HUB PAKISTAN API", status: "ok", version: "1.0.0", persistence: db.query ? "sql" : "json", timestamp: new Date().toISOString() }, origin);
+        if (persistenceMode === "sql") await db.list("users");
+        return json(res, 200, { success: true, service: "SCHOOLS SOLUTIONS HUB PAKISTAN API", status: "ok", version: "1.0.0", persistence: persistenceMode, timestamp: new Date().toISOString() }, origin);
       }
       if (req.method === "GET" && url.pathname === "/api/services") return json(res, 200, { success: true, data: SERVICES }, origin);
 
