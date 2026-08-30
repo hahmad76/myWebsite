@@ -1,9 +1,8 @@
-# Backend Implementation — SCHOOLS SOLUTIONS HUB PAKISTAN
+# Backend & System Integration — SCHOOLS SOLUTIONS HUB PAKISTAN
 
-This implementation adds the first executable backend layer while preserving the
-existing static front end.
+The repository now contains an executable frontend-to-backend integration foundation while preserving the public website structure.
 
-## Included
+## Implemented
 
 - Node.js 20+ HTTP API with no third-party runtime dependency
 - `/api/health`
@@ -15,16 +14,33 @@ existing static front end.
 - `/api/school-requirements`
 - `/api/content-submissions`
 - `/api/submissions`
-- JSON persistent storage through a replaceable storage adapter
+- `/api/quotes`
+- `/api/orders`
+- `/api/auth/login`
+- `/api/auth/logout`
+- `/api/auth/me`
+- Protected administrator dashboard and collection endpoints
+- Administrator status/metadata updates with protected record fields
+- Internal notification records for submissions, quotes and orders
+- Audit-log records
 - Input sanitization and validation
 - Request-size protection
 - Basic per-IP rate limiting
 - Security response headers
-- CORS configuration
-- Audit-log records for received submissions
-- Automated API tests using Node's built-in test runner
+- Configurable CORS
+- Replaceable storage/database adapter
+- Relational target schema in `backend/data/schema.sql`
+- Production Dockerfile and deployment/security runbook
+- Automated API and integration tests using Node's built-in test runner
+- Frontend service actions connected to service, quote and order APIs
 
-## Run
+## Current architecture
+
+Public frontend → API → validation/sanitization → repository/storage adapter → persistent records → audit/notification layer.
+
+Administrator access is server-side and requires an explicitly configured password hash. No plaintext administrator password is stored in the repository.
+
+## Run locally
 
 From `backend/`:
 
@@ -35,7 +51,9 @@ npm start
 
 The development API listens on port 3000 by default.
 
-For production, replace the JSON storage adapter with a managed database and place
-the API behind HTTPS/reverse-proxy infrastructure. Authentication, role-based
-authorization, admin workflows, notifications and payments remain subsequent
-integration layers and are intentionally not represented as complete.
+## Production status
+
+This is the implementation/integration foundation, not a declaration of full production readiness.
+The next production-hardening work is to connect a managed relational database, durable shared sessions,
+external notification providers, payment processing where required, deployment secrets, HTTPS/reverse-proxy
+configuration, monitoring, backups and full end-to-end QA.
