@@ -6,10 +6,12 @@ const COLLECTIONS = {
   submissions: "submissions",
   quotes: "quotes",
   orders: "orders",
+  payments: "payments",
   announcements: "announcements",
   resources: "resources",
   notifications: "notifications",
   users: "users",
+  sessions: "sessions",
   auditLog: "audit_log"
 };
 
