@@ -71,7 +71,8 @@ document.addEventListener("DOMContentLoaded", () => {
     return ({
       "Teacher Career Interest": "/teacher-interests",
       "Private School Requirement": "/school-requirements",
-      "Community Content Contribution": "/content-submissions"
+      "Community Content Contribution": "/content-submissions",
+      "Content Contribution": "/content-submissions"
     }[type] || "/submissions");
   };
 
@@ -101,6 +102,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     return result;
   };
+
+  // The backend is now the source of truth for form submissions.
+  const legacyMessage = "This front-end version stores submissions locally in your browser until a backend is connected.";
+  document.querySelectorAll("p").forEach(p => {
+    if (p.textContent.includes(legacyMessage)) {
+      p.textContent = "Your request is submitted securely to the Hub for processing.";
+    }
+  });
 
   document.querySelectorAll(".interaction-form").forEach(form => {
     form.addEventListener("submit", async e => {
