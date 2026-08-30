@@ -9,6 +9,7 @@ const EMPTY_STORE = {
   submissions: [],
   quotes: [],
   orders: [],
+  payments: [],
   announcements: [],
   resources: [],
   notifications: [],
