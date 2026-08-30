@@ -36,17 +36,8 @@ const SERVICES = [
 ];
 
 const ADMIN_COLLECTIONS = [
-  "serviceRequests",
-  "teacherInterests",
-  "schoolRequirements",
-  "contentSubmissions",
-  "submissions",
-  "quotes",
-  "orders",
-  "announcements",
-  "resources",
-  "notifications",
-  "auditLog"
+  "serviceRequests", "teacherInterests", "schoolRequirements", "contentSubmissions", "submissions",
+  "quotes", "orders", "announcements", "resources", "notifications", "auditLog"
 ];
 
 function json(res, status, payload, origin) {
@@ -102,13 +93,7 @@ function createRateLimiter(windowMs, maxRequests) {
 }
 
 function recordFor(type, data) {
-  return {
-    id: crypto.randomUUID(),
-    type,
-    data,
-    status: "received",
-    createdAt: new Date().toISOString()
-  };
+  return { id: crypto.randomUUID(), type, data, status: "received", createdAt: new Date().toISOString() };
 }
 
 function collectionFromPath(pathname) {
@@ -121,6 +106,11 @@ function idFromPatchPath(pathname) {
   return match ? { collection: match[1], id: match[2] } : null;
 }
 
+function allowedAdminPatch(body) {
+  const allowed = ["status", "read", "notes", "assignedTo", "amount_minor", "currency", "title", "description", "category"];
+  return Object.fromEntries(Object.entries(body).filter(([key]) => allowed.includes(key)));
+}
+
 export function createApp({ storage, configOverride = {} } = {}) {
   const cfg = { ...config, ...configOverride };
   const store = storage || createStorage(cfg.dataFile);
@@ -128,56 +118,38 @@ export function createApp({ storage, configOverride = {} } = {}) {
   const auth = createAuth(cfg);
   const notifications = createNotificationService(store);
   const allowRequest = createRateLimiter(cfg.rateWindowMs, cfg.rateMax);
-
   const requireAdmin = req => auth.authenticate(req);
 
   async function handler(req, res) {
     const origin = cfg.corsOrigin;
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
-
     if (req.method === "OPTIONS") return json(res, 204, {}, origin);
     if (!allowRequest(ip)) return json(res, 429, { success: false, error: "Too many requests" }, origin);
-
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
     try {
       if (req.method === "GET" && url.pathname === "/api/health") {
         await store.ensureFile();
-        return json(res, 200, {
-          success: true,
-          service: "SCHOOLS SOLUTIONS HUB PAKISTAN API",
-          status: "ok",
-          version: "1.0.0",
-          timestamp: new Date().toISOString()
-        }, origin);
+        return json(res, 200, { success: true, service: "SCHOOLS SOLUTIONS HUB PAKISTAN API", status: "ok", version: "1.0.0", timestamp: new Date().toISOString() }, origin);
       }
-
-      if (req.method === "GET" && url.pathname === "/api/services") {
-        return json(res, 200, { success: true, data: SERVICES }, origin);
-      }
+      if (req.method === "GET" && url.pathname === "/api/services") return json(res, 200, { success: true, data: SERVICES }, origin);
 
       if (req.method === "POST" && url.pathname === "/api/auth/login") {
-        const body = await readJson(req, cfg.maxBodyBytes);
-        const result = auth.login(body);
+        const result = auth.login(await readJson(req, cfg.maxBodyBytes));
         if (!result) return json(res, 401, { success: false, error: "Invalid administrator credentials or authentication is not configured." }, origin);
         return json(res, 200, { success: true, data: result }, origin);
       }
-
       if (req.method === "POST" && url.pathname === "/api/auth/logout") {
         auth.logout(req);
         return json(res, 200, { success: true }, origin);
       }
-
       if (req.method === "GET" && url.pathname === "/api/auth/me") {
         const user = requireAdmin(req);
         if (!user) return json(res, 401, { success: false, error: "Authentication required" }, origin);
         return json(res, 200, { success: true, data: { username: user.username, role: user.role, expiresAt: new Date(user.expiresAt).toISOString() } }, origin);
       }
 
-      const collectionRoutes = {
-        "/api/resources": "resources",
-        "/api/announcements": "announcements"
-      };
+      const collectionRoutes = { "/api/resources": "resources", "/api/announcements": "announcements" };
       if (req.method === "GET" && collectionRoutes[url.pathname]) {
         const data = await db.list(collectionRoutes[url.pathname]);
         return json(res, 200, { success: true, data }, origin);
@@ -192,12 +164,10 @@ export function createApp({ storage, configOverride = {} } = {}) {
           for (const collection of ADMIN_COLLECTIONS) counts[collection] = (await db.list(collection)).length;
           return json(res, 200, { success: true, data: { counts, generatedAt: new Date().toISOString() } }, origin);
         }
-
         if (req.method === "GET" && url.pathname === "/api/admin/notifications") {
           const data = await db.list("notifications");
           return json(res, 200, { success: true, data: data.slice(-100).reverse() }, origin);
         }
-
         if (req.method === "GET") {
           const collection = collectionFromPath(url.pathname);
           if (collection && ADMIN_COLLECTIONS.includes(collection)) {
@@ -205,11 +175,11 @@ export function createApp({ storage, configOverride = {} } = {}) {
             return json(res, 200, { success: true, data: data.slice(-200).reverse() }, origin);
           }
         }
-
         if (req.method === "PATCH") {
           const target = idFromPatchPath(url.pathname);
           if (!target || !ADMIN_COLLECTIONS.includes(target.collection)) return json(res, 404, { success: false, error: "Administrative collection not found" }, origin);
-          const body = sanitizeData(await readJson(req, cfg.maxBodyBytes));
+          const body = allowedAdminPatch(sanitizeData(await readJson(req, cfg.maxBodyBytes)));
+          if (!Object.keys(body).length) return json(res, 422, { success: false, error: "No permitted fields supplied" }, origin);
           const updated = await db.update(target.collection, target.id, body);
           if (!updated) return json(res, 404, { success: false, error: "Record not found" }, origin);
           await db.append("auditLog", { id: crypto.randomUUID(), action: "admin.record.updated", entityId: target.id, type: target.collection, actor: user.username, metadata: body, createdAt: new Date().toISOString() });
@@ -225,7 +195,6 @@ export function createApp({ storage, configOverride = {} } = {}) {
           "/api/content-submissions": ["Community Content Contribution", "contentSubmissions"],
           "/api/submissions": [null, "submissions"]
         };
-
         if (routeMap[url.pathname]) {
           const [routeType, collection] = routeMap[url.pathname];
           const body = await readJson(req, cfg.maxBodyBytes);
@@ -233,28 +202,11 @@ export function createApp({ storage, configOverride = {} } = {}) {
           const data = sanitizeData(routeType ? body : body.data);
           const errors = validateSubmission(type, data);
           if (errors.length) return json(res, 422, { success: false, error: "Validation failed", details: errors }, origin);
-
           const record = recordFor(type, data);
           await db.append(collection, record);
-          await db.append("auditLog", {
-            id: crypto.randomUUID(),
-            action: "submission.received",
-            entityId: record.id,
-            type,
-            createdAt: record.createdAt
-          });
-          await notifications.create({
-            type: "new-submission",
-            title: "New website submission",
-            message: `${type} received from ${data.name || data.school || "website user"}.`,
-            entityId: record.id
-          });
-
-          return json(res, 201, {
-            success: true,
-            message: "Submission received successfully.",
-            data: { id: record.id, status: record.status, createdAt: record.createdAt }
-          }, origin);
+          await db.append("auditLog", { id: crypto.randomUUID(), action: "submission.received", entityId: record.id, type, createdAt: record.createdAt });
+          await notifications.create({ type: "new-submission", title: "New website submission", message: `${type} received from ${data.name || data.school || "website user"}.`, entityId: record.id });
+          return json(res, 201, { success: true, message: "Submission received successfully.", data: { id: record.id, status: record.status, createdAt: record.createdAt } }, origin);
         }
 
         if (url.pathname === "/api/quotes") {
@@ -285,10 +237,7 @@ export function createApp({ storage, configOverride = {} } = {}) {
     } catch (error) {
       const status = Number(error.statusCode) || 500;
       console.error(error);
-      return json(res, status, {
-        success: false,
-        error: status === 500 ? "Internal server error" : error.message
-      }, origin);
+      return json(res, status, { success: false, error: status === 500 ? "Internal server error" : error.message }, origin);
     }
   }
 
@@ -299,9 +248,7 @@ export async function startServer() {
   const app = createApp();
   await app.store.ensureFile();
   const server = http.createServer(app.handler);
-  server.listen(config.port, config.host, () => {
-    console.log(`SSHP backend listening on http://${config.host}:${config.port}`);
-  });
+  server.listen(config.port, config.host, () => console.log(`SSHP backend listening on http://${config.host}:${config.port}`));
   return server;
 }
 
