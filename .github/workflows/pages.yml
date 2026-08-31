@@ -32,6 +32,10 @@ jobs:
           set -e
           rm -rf _site
           mkdir -p _site
+          test -f index.html
+          test -f styles.css
+          test -f script.js
+          test -f admin.html
           cp index.html _site/
           cp styles.css _site/
           cp script.js _site/
@@ -39,6 +43,8 @@ jobs:
           if [ -f validation.js ]; then cp validation.js _site/; fi
           if [ -d assets ]; then cp -R assets _site/assets; fi
           touch _site/.nojekyll
+          echo "Frontend artifact prepared successfully"
+          find _site -maxdepth 2 -type f -print
 
       - name: Upload website artifact
         uses: actions/upload-pages-artifact@v3
