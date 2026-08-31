@@ -6,8 +6,8 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "test": "node --test"
+    "start": "node backend/src/server.js",
+    "dev": "node --watch backend/src/server.js",
+    "test": "node --test api.test.js"
   }
 }
