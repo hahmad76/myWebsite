@@ -4,8 +4,8 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createApp } from "../src/server.js";
-import { createStorage } from "../src/storage.js";
+import { createApp } from "./backend/src/server.js";
+import { createStorage } from "./backend/src/storage.js";
 
 async function request(server, method, pathname, body) {
   const address = server.address();
