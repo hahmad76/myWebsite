@@ -1,0 +1,9 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "mywebsite",
+  "compatibility_date": "2026-08-31",
+  "assets": {
+    "directory": ".",
+    "not_found_handling": "404-page"
+  }
+}
