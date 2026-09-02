@@ -23,6 +23,55 @@ document.addEventListener("DOMContentLoaded", () => {
   pm?.addEventListener("change",()=>{if(of)of.hidden=pm.value!=="omni";});
   if(of&&pm&&pm.value!=="omni")of.hidden=true;
   const pf=document.querySelector(".payment-form");pf?.addEventListener("submit",async e=>{e.preventDefault();const msg=pf.querySelector(".form-message"),data=Object.fromEntries(new FormData(pf).entries());if(msg){msg.textContent="Submitting payment reference securely…";msg.removeAttribute("data-error");}try{data.currency=String(data.currency||"").toUpperCase();data.amount_minor=Number(data.amount_minor);const r=await post("/payments",data);if(msg)msg.textContent=r.message||"Payment reference received for administrator verification.";pf.reset();if(of)of.hidden=true;}catch(err){if(msg){msg.textContent=`Unable to submit right now. ${err.message}`;msg.setAttribute("data-error","true");}}});
-  const sections=[...document.querySelectorAll("main section[id]")],links=[...document.querySelectorAll(".main-nav a,.side-bar a")];
+  const sections=[...document.querySelectorAll("main section[id]" )],links=[...document.querySelectorAll(".main-nav a,.side-bar a")];
   if("IntersectionObserver"in window){const ob=new IntersectionObserver(es=>{const v=es.filter(x=>x.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(!v)return;links.forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+v.target.id));},{rootMargin:"-35% 0px -55% 0px",threshold:[0,.2,.5]});sections.forEach(s=>ob.observe(s));}
+
+  /* Professional horizontal mega-menu: generated from the existing four approved areas. */
+  const style=document.createElement("style");
+  style.textContent=`
+    .main-nav{gap:6px;align-items:stretch}.nav-item{position:relative;display:flex;align-items:center}.nav-item>a{display:flex;align-items:center;gap:5px;padding:10px 11px;border-radius:8px;white-space:nowrap}.nav-item.has-menu>a::after{content:"⌄";font-size:12px;line-height:1;opacity:.65;transition:transform .2s ease}.nav-item.has-menu:hover>a::after,.nav-item.has-menu:focus-within>a::after{transform:rotate(180deg)}.nav-item>a:hover,.nav-item>a.active{background:#f1f7fd;color:#0b5cab}
+    .mega-menu{position:absolute;left:50%;top:calc(100% + 9px);transform:translate(-50%,-8px);width:300px;padding:10px;background:#fff;border:1px solid #dce6ef;border-radius:13px;box-shadow:0 18px 45px rgba(22,54,88,.16);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,transform .18s ease,visibility .18s ease;z-index:80}.mega-menu::before{content:"";position:absolute;top:-6px;left:50%;width:11px;height:11px;background:#fff;border-left:1px solid #dce6ef;border-top:1px solid #dce6ef;transform:translateX(-50%) rotate(45deg)}.nav-item.has-menu:hover .mega-menu,.nav-item.has-menu:focus-within .mega-menu,.nav-item.has-menu.menu-open .mega-menu{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}
+    .mega-menu-title{display:block;padding:7px 10px 9px;color:#0b5cab;font-size:10px;font-weight:900;letter-spacing:1.1px;border-bottom:1px solid #edf1f5}.mega-menu a{display:flex!important;align-items:center;gap:9px;padding:9px 10px!important;border-radius:8px;font-size:12px;font-weight:750;color:#40516a;white-space:normal}.mega-menu a::before{content:"→";color:#0b5cab;font-weight:900}.mega-menu a:hover{background:#f5f9fd;color:#0b5cab}.nav-item.simple>a{padding-left:11px;padding-right:11px}
+    @media(min-width:701px){.main-nav>.nav-item:last-child{margin-left:4px}.main-nav>.nav-item:last-child>a{padding:10px 15px}}
+    @media(max-width:1000px) and (min-width:701px){.nav-item>a{padding-left:7px;padding-right:7px}.main-nav{gap:2px;font-size:12px}.mega-menu{width:270px}}
+    @media(max-width:700px){.main-nav{gap:0}.nav-item{display:block}.nav-item>a{justify-content:space-between;width:100%;padding:10px}.mega-menu{position:static;width:100%;transform:none!important;margin:2px 0 5px;padding:5px;box-shadow:none;border-radius:9px;display:none;opacity:1;visibility:visible;pointer-events:auto}.nav-item.has-menu.menu-open .mega-menu{display:block}.mega-menu::before{display:none}.mega-menu a{padding:8px 10px!important}.nav-item.has-menu>a::after{content:"+";font-size:15px}.nav-item.has-menu.menu-open>a::after{content:"−"}.nav-cta{margin-top:5px}}
+  `;
+  document.head.appendChild(style);
+
+  const menuDefinitions={
+    "Online Services":{
+      title:"EDUCATIONAL SERVICES",
+      items:[["School Documentation","#services"],["Educational Design & Digital Support","#services"],["School Support Services","#services"],["Custom Educational Service","#start"],["Submit a Service Request","#start"]]
+    },
+    "Careers":{
+      title:"SCHOOLS & CANDIDATES",
+      items:[["Private Schools — Find Employees","#school-request"],["Candidates — Find Jobs","#teacher-interest"],["School Recruitment Requirement","#school-request"],["Candidate Registration","#teacher-interest"]]
+    },
+    "Resources":{
+      title:"EDUCATION RESOURCES",
+      items:[["Education Resources","#resources"],["Community Contributions","#content-share"],["Education Updates","#updates"]]
+    },
+    "Updates":{
+      title:"LATEST INFORMATION",
+      items:[["Education Updates","#updates"],["Community","#content-share"],["About SSHP","#about"]]
+    }
+  };
+  nav?.querySelectorAll(":scope > a").forEach(link=>{
+    const label=(link.textContent||"").trim();
+    const def=menuDefinitions[label];
+    const wrapper=document.createElement("div");
+    wrapper.className=def?"nav-item has-menu":"nav-item simple";
+    link.parentNode.insertBefore(wrapper,link); wrapper.appendChild(link);
+    if(def){
+      const menu=document.createElement("div"); menu.className="mega-menu"; menu.setAttribute("role","menu");
+      const title=document.createElement("span"); title.className="mega-menu-title"; title.textContent=def.title; menu.appendChild(title);
+      def.items.forEach(([text,href])=>{const a=document.createElement("a");a.href=href;a.textContent=text;a.setAttribute("role","menuitem");menu.appendChild(a);});
+      wrapper.appendChild(menu);
+      link.setAttribute("aria-haspopup","true"); link.setAttribute("aria-expanded","false");
+      link.addEventListener("click",e=>{if(window.innerWidth<=700){e.preventDefault();const open=wrapper.classList.toggle("menu-open");link.setAttribute("aria-expanded",String(open));}});
+      wrapper.addEventListener("mouseenter",()=>link.setAttribute("aria-expanded","true"));
+      wrapper.addEventListener("mouseleave",()=>link.setAttribute("aria-expanded","false"));
+      menu.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{wrapper.classList.remove("menu-open");link.setAttribute("aria-expanded","false");nav.classList.remove("open");toggle?.setAttribute("aria-expanded","false");}));
+    }
+  });
 });
