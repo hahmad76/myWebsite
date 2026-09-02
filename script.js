@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const toggle=document.querySelector(".menu-toggle"), nav=document.querySelector(".main-nav"), sidebar=document.querySelector(".side-bar"), sidebarToggle=document.querySelector(".sidebar-toggle");
-  if(toggle&&nav){toggle.addEventListener("click",()=>{const open=nav.classList.toggle("open");toggle.setAttribute("aria-expanded",String(open));});nav.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{nav.classList.remove("open");toggle.setAttribute("aria-expanded","false");}));}
+  if(toggle&&nav){toggle.addEventListener("click",()=>{const open=nav.classList.toggle("open");toggle.setAttribute("aria-expanded",String(open));});nav.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{if(window.innerWidth<=700&&a.parentElement?.classList.contains("has-menu"))return;nav.classList.remove("open");toggle.setAttribute("aria-expanded","false");}));}
   if(sidebarToggle&&sidebar){const adminLink=sidebar.querySelector('a[href="#admin"]');if(adminLink)adminLink.href="admin.html";sidebarToggle.addEventListener("click",()=>{const open=sidebar.classList.toggle("open");sidebarToggle.setAttribute("aria-expanded",String(open));});sidebar.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{sidebar.classList.remove("open");sidebarToggle.setAttribute("aria-expanded","false");}));}
   const year=document.getElementById("year"); if(year)year.textContent=new Date().getFullYear();
   const filters=document.querySelectorAll(".filter"),cards=document.querySelectorAll(".service-card[data-category]");
@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const sections=[...document.querySelectorAll("main section[id]" )],links=[...document.querySelectorAll(".main-nav a,.side-bar a")];
   if("IntersectionObserver"in window){const ob=new IntersectionObserver(es=>{const v=es.filter(x=>x.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(!v)return;links.forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+v.target.id));},{rootMargin:"-35% 0px -55% 0px",threshold:[0,.2,.5]});sections.forEach(s=>ob.observe(s));}
 
-  /* Professional horizontal mega-menu: generated from the existing four approved areas. */
+  /* Professional horizontal mega-menu: keep the existing Online Services menu (including Omni) and add matching dropdowns to the other approved navigation sections. */
   const style=document.createElement("style");
   style.textContent=`
     .main-nav{gap:6px;align-items:stretch}.nav-item{position:relative;display:flex;align-items:center}.nav-item>a{display:flex;align-items:center;gap:5px;padding:10px 11px;border-radius:8px;white-space:nowrap}.nav-item.has-menu>a::after{content:"⌄";font-size:12px;line-height:1;opacity:.65;transition:transform .2s ease}.nav-item.has-menu:hover>a::after,.nav-item.has-menu:focus-within>a::after{transform:rotate(180deg)}.nav-item>a:hover,.nav-item>a.active{background:#f1f7fd;color:#0b5cab}
@@ -39,39 +39,30 @@ document.addEventListener("DOMContentLoaded", () => {
   document.head.appendChild(style);
 
   const menuDefinitions={
-    "Online Services":{
-      title:"EDUCATIONAL SERVICES",
-      items:[["School Documentation","#services"],["Educational Design & Digital Support","#services"],["School Support Services","#services"],["Custom Educational Service","#start"],["Submit a Service Request","#start"]]
-    },
-    "Careers":{
-      title:"SCHOOLS & CANDIDATES",
-      items:[["Private Schools — Find Employees","#school-request"],["Candidates — Find Jobs","#teacher-interest"],["School Recruitment Requirement","#school-request"],["Candidate Registration","#teacher-interest"]]
-    },
-    "Resources":{
-      title:"EDUCATION RESOURCES",
-      items:[["Education Resources","#resources"],["Community Contributions","#content-share"],["Education Updates","#updates"]]
-    },
-    "Updates":{
-      title:"LATEST INFORMATION",
-      items:[["Education Updates","#updates"],["Community","#content-share"],["About SSHP","#about"]]
-    }
+    "Careers":{title:"SCHOOLS & CANDIDATES",items:[["Private Schools — Find Employees","#school-request"],["Candidates — Find Jobs","#teacher-interest"],["School Recruitment Requirement","#school-request"],["Candidate Registration","#teacher-interest"]]},
+    "Resources":{title:"EDUCATION RESOURCES",items:[["Education Resources","#resources"],["Community Contributions","#content-share"],["Education Updates","#updates"]]},
+    "Updates":{title:"LATEST INFORMATION",items:[["Education Updates","#updates"],["Community","#content-share"],["About SSHP","#about"]]},
+    "About":{title:"ABOUT SSHP",items:[["About SSHP","#about"],["Contact & Support","#contact"],["Administration","#admin"]]}
   };
-  nav?.querySelectorAll(":scope > a").forEach(link=>{
+
+  /* The Online Services dropdown is already present in index.html and contains the Omni options. Do not replace it. */
+  nav?.querySelectorAll(":scope > .nav-item > a").forEach(link=>{
     const label=(link.textContent||"").trim();
     const def=menuDefinitions[label];
-    const wrapper=document.createElement("div");
-    wrapper.className=def?"nav-item has-menu":"nav-item simple";
-    link.parentNode.insertBefore(wrapper,link); wrapper.appendChild(link);
-    if(def){
-      const menu=document.createElement("div"); menu.className="mega-menu"; menu.setAttribute("role","menu");
-      const title=document.createElement("span"); title.className="mega-menu-title"; title.textContent=def.title; menu.appendChild(title);
-      def.items.forEach(([text,href])=>{const a=document.createElement("a");a.href=href;a.textContent=text;a.setAttribute("role","menuitem");menu.appendChild(a);});
-      wrapper.appendChild(menu);
-      link.setAttribute("aria-haspopup","true"); link.setAttribute("aria-expanded","false");
-      link.addEventListener("click",e=>{if(window.innerWidth<=700){e.preventDefault();const open=wrapper.classList.toggle("menu-open");link.setAttribute("aria-expanded",String(open));}});
-      wrapper.addEventListener("mouseenter",()=>link.setAttribute("aria-expanded","true"));
-      wrapper.addEventListener("mouseleave",()=>link.setAttribute("aria-expanded","false"));
-      menu.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{wrapper.classList.remove("menu-open");link.setAttribute("aria-expanded","false");nav.classList.remove("open");toggle?.setAttribute("aria-expanded","false");}));
-    }
+    if(!def)return;
+    const wrapper=link.parentElement;
+    if(!wrapper)return;
+    wrapper.classList.remove("simple");
+    wrapper.classList.add("has-menu");
+    if(wrapper.querySelector(":scope > .mega-menu"))return;
+    const menu=document.createElement("div"); menu.className="mega-menu"; menu.setAttribute("role","menu");
+    const title=document.createElement("span"); title.className="mega-menu-title"; title.textContent=def.title; menu.appendChild(title);
+    def.items.forEach(([text,href])=>{const a=document.createElement("a");a.href=href;a.textContent=text;a.setAttribute("role","menuitem");menu.appendChild(a);});
+    wrapper.appendChild(menu);
+    link.setAttribute("aria-haspopup","true"); link.setAttribute("aria-expanded","false");
+    link.addEventListener("click",e=>{if(window.innerWidth<=700){e.preventDefault();const open=wrapper.classList.toggle("menu-open");link.setAttribute("aria-expanded",String(open));}});
+    wrapper.addEventListener("mouseenter",()=>link.setAttribute("aria-expanded","true"));
+    wrapper.addEventListener("mouseleave",()=>link.setAttribute("aria-expanded","false"));
+    menu.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{wrapper.classList.remove("menu-open");link.setAttribute("aria-expanded","false");nav.classList.remove("open");toggle?.setAttribute("aria-expanded","false");}));
   });
 });
