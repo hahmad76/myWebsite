@@ -1,0 +1,7 @@
+# Local PHP production secrets
+/api/config.php
+
+# Local runtime / OS files
+.DS_Store
+Thumbs.db
+*.log
