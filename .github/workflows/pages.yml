@@ -40,7 +40,6 @@ jobs:
           cp styles.css _site/
           cp script.js _site/
           cp admin.html _site/
-          if [ -f validation.js ]; then cp validation.js _site/; fi
           if [ -d assets ]; then cp -R assets _site/assets; fi
           touch _site/.nojekyll
           echo "Frontend artifact prepared successfully"
