@@ -1,0 +1,5 @@
+# Protect production configuration and SQL files.
+<FilesMatch "^(config\.php|.*\.sql)$">
+  Require all denied
+</FilesMatch>
+DirectoryIndex index.php
