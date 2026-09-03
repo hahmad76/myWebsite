@@ -1,12 +1,18 @@
 # SCHOOLS SOLUTIONS HUB PAKISTAN
 
-## Production Website & System Integration Foundation
+## Production Website & Shared-Hosting System
 
-This repository contains the consolidated public website and the server-side integration foundation for **SCHOOLS SOLUTIONS HUB PAKISTAN**.
+This repository contains the consolidated public website and production-ready shared-hosting integration for **SCHOOLS SOLUTIONS HUB PAKISTAN (SSHP)**.
 
-## Current status
+## Current architecture
 
-The repository is on the `main` branch, which is the default branch.
+SSHP V1.0 is designed to run on ordinary cPanel/LiteSpeed shared hosting without a VPS or external backend service:
+
+**Browser → PHP 8.x API → MySQL/MariaDB on the same hosting account**
+
+The production path does **not** require Node.js, npm, PostgreSQL, Neon, port 5432, or a separate API server. The frontend already uses `/api` by default, so the website and API can operate on the same domain.
+
+## Public website
 
 The public frontend includes:
 - Unified homepage and navigation
@@ -20,54 +26,50 @@ The public frontend includes:
 - Education updates/announcements section
 - Responsive layouts and mobile navigation
 - Accessibility skip link
+- BISE Saidu Sharif Swat Omni payment-reference pathway
 
-The repository also contains the Node.js backend integration foundation for:
-- Service requests, quotes and orders
-- Teacher interests and school requirements
+## Production API features
+
+The PHP API supports:
+- Service requests
+- Teacher interests
+- Private-school requirements
 - Community content submissions
+- Quotes and orders
+- Omni payment-reference submissions
 - Resources and announcements
-- Administrator authentication and authorization
-- Administrative dashboard/collection workflows
-- Notifications and audit logging
+- Administrator login/logout/session expiry
+- Administrative dashboard and collection views
+- Administrative record updates
+- Notifications
+- Audit logging
 - Request validation and rate limiting
-- JSON development persistence
-- PostgreSQL production persistence
-- Relational schema and JSON-to-SQL migration support
+- MySQL/MariaDB persistence
 
-## Production boundary
+## Hosting requirements
 
-GitHub Pages can host the static frontend, but it does not execute the Node.js backend. Full production functionality therefore requires a separate HTTPS Node.js backend deployment and a managed PostgreSQL database.
+A normal shared-hosting plan should be sufficient when it provides:
+- PHP 8.x
+- MySQL or MariaDB
+- PDO MySQL
+- Apache/LiteSpeed with `.htaccess` rewrite support
+- HTTPS/SSL
+- phpMyAdmin/cPanel access is strongly preferred
 
-The frontend uses `/api` by default. When the API is hosted on a separate origin, configure `window.SSHP_API_BASE` before `script.js` loads and allow the exact frontend origin through `CORS_ORIGIN`.
+No external database connection is required.
 
-Administrator authentication remains disabled until a secure `ADMIN_PASSWORD_HASH` is configured in the backend deployment environment. Secrets must never be committed to the repository.
+## Deployment
+
+See `PHP_HOSTING_DEPLOYMENT.md` for the exact cPanel deployment procedure and `database.sql` for the database schema. Copy `api/config.example.php` to `api/config.php` on the hosting account and enter the real database credentials and administrator password hash. `api/config.php` is excluded from Git by `.gitignore` and blocked from direct web access by `api/.htaccess`.
 
 ## GitHub Pages
 
-The workflow in `.github/workflows/pages.yml` deploys the public frontend from `main` using GitHub Actions. Configure the repository's **Settings → Pages → Build and deployment → Source** as **GitHub Actions**.
+GitHub Pages can still display the static frontend, but PHP APIs are executed only by a PHP-capable web host. For the full production website, upload the repository's public files and `api/` directory to the shared host.
 
-## Important deployment requirements
+## Security rule
 
-Before declaring the system fully production-live:
-1. Deploy the backend on Node.js 20+ behind HTTPS.
-2. Configure a managed PostgreSQL database using `DATABASE_URL`.
-3. Set the exact production frontend origin in `CORS_ORIGIN`.
-4. Configure a strong scrypt `ADMIN_PASSWORD_HASH`.
-5. Configure the frontend with the real HTTPS API origin when it is hosted separately.
-6. Run the automated tests and end-to-end production verification.
-7. Configure database backups, monitoring and restricted administrative access.
-
-## Repository documentation
-
-- `index.html` — public website structure
-- `styles.css` — responsive website styling
-- `script.js` — navigation, filtering and API submission handling
-- `admin.html` — administrator console frontend
-- `backend/` — Node.js API, authentication, persistence, notifications and migrations
-- `DEPLOYMENT.md` — deployment and security requirements
-- `.env.example` — non-secret runtime configuration template
-- `.github/workflows/pages.yml` — GitHub Pages deployment workflow
+Never commit real database credentials, administrator passwords, API tokens, or payment credentials. The Omni payment form accepts only a transaction/reference number; users must never enter an Omni PIN, OTP or password on the website.
 
 ## Development rule
 
-The approved implementation is treated as locked. Production verification, bug fixing, QA, security verification and deployment consolidation should improve the existing system without replacing the project or creating artificial Build 101+ stages.
+The approved SSHP implementation remains the project foundation. Production verification, bug fixing, QA, security verification and deployment consolidation should improve the existing system without replacing the project or creating artificial Build 101+ stages.
