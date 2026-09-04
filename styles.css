@@ -1,0 +1,22 @@
+@import url("https://raw.githubusercontent.com/hahmad76/myWebsite/6f158bd81e9f9b6f11d3c5f998a47d2973bdd882/styles.css");
+
+/* Final desktop dropdown hover bridge: the menu stays open while the pointer travels from the header option into the dropdown. */
+@media (min-width:701px){
+  .nav-item.has-menu::after{
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    top:100%;
+    height:14px;
+    z-index:79;
+  }
+  .nav-item.has-menu:hover>.mega-menu,
+  .nav-item.has-menu:focus-within>.mega-menu,
+  .nav-item.has-menu.menu-open>.mega-menu{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+    transform:translate(-50%,0);
+  }
+}
