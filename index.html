@@ -6,6 +6,22 @@
 <meta name="description" content="SCHOOLS SOLUTIONS HUB PAKISTAN — education services, school and teacher opportunities, resources and community.">
 <title>SCHOOLS SOLUTIONS HUB PAKISTAN</title>
 <link rel="stylesheet" href="styles.css?v=20260830-3">
+<style>
+/* Government Teachers Corner dropdown */
+.nav-item{position:relative}
+.nav-item.has-menu>a::after{content:'⌄';margin-left:5px;font-size:10px;color:#748095}
+.nav-item.has-menu>a[aria-expanded="true"]::after{content:'⌃'}
+.mega-menu{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%);display:none;min-width:330px;max-width:380px;padding:10px;background:#fff;border:1px solid #dfe7ef;border-radius:12px;box-shadow:0 16px 35px rgba(30,55,80,.14);z-index:60}
+.nav-item.has-menu.menu-open>.mega-menu{display:grid;gap:2px}
+.mega-menu-title{padding:9px 11px 7px;font-size:10px;letter-spacing:1px;font-weight:900;color:#0b5cab}
+.mega-menu a{display:block;padding:9px 11px;border-radius:7px;font-size:12px;line-height:1.35;color:#43536a}
+.mega-menu a:hover{background:#f1f7ff;color:#0b5cab}
+@media(max-width:700px){
+  .mega-menu{position:static;transform:none;min-width:0;max-width:none;margin:0 10px 8px;padding:5px;border:0;border-top:1px solid #edf1f5;border-radius:0;box-shadow:none}
+  .nav-item.has-menu.menu-open>.mega-menu{display:grid}
+  .mega-menu a{padding:8px 10px}
+}
+</style>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -36,7 +52,7 @@
     <nav class="main-nav" aria-label="Main navigation">
   <div class="nav-item simple"><a class="active" href="#top">Home</a></div>
   <div class="nav-item has-menu">
-    <a href="#services" aria-haspopup="true" onclick="event.preventDefault();this.parentElement.classList.toggle('menu-open')">Online Services</a>
+    <a href="#services" aria-haspopup="true" aria-expanded="false" onclick="event.preventDefault();const m=this.parentElement;m.classList.toggle('menu-open');this.setAttribute('aria-expanded',m.classList.contains('menu-open'))">Online Services</a>
     <div class="mega-menu" role="menu">
       <span class="mega-menu-title">ONLINE SERVICES &amp; ORDERS</span>
       <a role="menuitem" href="#payments">BISE Saidu Sharif Challan payment by omni 24/7</a>
@@ -46,6 +62,25 @@
     </div>
   </div>
   <div class="nav-item simple"><a href="#careers">Careers</a></div>
+  <div class="nav-item has-menu">
+    <a href="#govt-teachers-corner" aria-haspopup="true" aria-expanded="false" onclick="event.preventDefault();const m=this.parentElement;m.classList.toggle('menu-open');this.setAttribute('aria-expanded',m.classList.contains('menu-open'))">Govt. Teachers Corner</a>
+    <div class="mega-menu" role="menu">
+      <span class="mega-menu-title">GOVT. TEACHERS CORNER</span>
+      <a role="menuitem" href="#govt-teachers-corner">Online Charge Report Preparation</a>
+      <a role="menuitem" href="#govt-teachers-corner">Online Relieving Slip Preparation</a>
+      <a role="menuitem" href="#govt-teachers-corner">Online Medical Certificate Preparation</a>
+      <a role="menuitem" href="#govt-teachers-corner">Service Book maintenance</a>
+      <a role="menuitem" href="#govt-teachers-corner">Arrears Bill Preparation</a>
+      <a role="menuitem" href="#govt-teachers-corner">Any Kind of Application</a>
+      <a role="menuitem" href="#govt-teachers-corner">GP Fund Documents preparation</a>
+      <a role="menuitem" href="#govt-teachers-corner">Pension Case preparation</a>
+      <a role="menuitem" href="#govt-teachers-corner">Source Form preparation</a>
+      <a role="menuitem" href="#govt-teachers-corner">Budget Preparation</a>
+      <a role="menuitem" href="#govt-teachers-corner">2nd List / Revised Budget preparation</a>
+      <a role="menuitem" href="#govt-teachers-corner">AC Bills Preparation — all kinds</a>
+      <a role="menuitem" href="#govt-teachers-corner">Any Kind of Departmental or Legal Advice</a>
+    </div>
+  </div>
   <div class="nav-item simple"><a href="#resources">Resources</a></div>
   <div class="nav-item simple"><a href="#updates">Updates</a></div>
   <div class="nav-item simple"><a href="#about">About</a></div>
