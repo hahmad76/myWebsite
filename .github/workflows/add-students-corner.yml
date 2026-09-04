@@ -1,0 +1,63 @@
+name: Add Students Corner
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Add Students Corner after Govt. Teachers Corner
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("index.html")
+          text = p.read_text(encoding="utf-8")
+          marker = '  <div class="nav-item simple"><a href="#resources">Resources</a></div>'
+          block = '''  <div class="nav-item has-menu">
+    <a href="#students-corner" aria-haspopup="true" aria-expanded="false" onclick="event.preventDefault();const m=this.parentElement;m.classList.toggle('menu-open');this.setAttribute('aria-expanded',m.classList.contains('menu-open'))">Students Corner</a>
+    <div class="mega-menu" role="menu">
+      <span class="mega-menu-title">STUDENTS CORNER</span>
+      <a role="menuitem" href="#students-corner">Admission</a>
+      <a role="menuitem" href="#students-corner">Examinations</a>
+      <a role="menuitem" href="#students-corner">Results</a>
+      <a role="menuitem" href="#students-corner">Study problems discussion</a>
+      <a role="menuitem" href="#students-corner">Guidance and Counselling</a>
+      <a role="menuitem" href="#students-corner">Tuition</a>
+      <a role="menuitem" href="#students-corner">Notes and guides</a>
+      <a role="menuitem" href="#students-corner">General issues</a>
+      <a role="menuitem" href="#students-corner">Scholarships</a>
+      <a role="menuitem" href="#payments">BISE Saidu Sharif Challan Payment by omni</a>
+    </div>
+  </div>
+'''
+          if 'id="students-corner"' not in text and 'Students Corner' not in text:
+              if marker not in text:
+                  raise SystemExit("Navigation marker not found")
+              text = text.replace(marker, block + marker, 1)
+              p.write_text(text, encoding="utf-8")
+          else:
+              print("Students Corner already present; no navigation change needed.")
+
+      - name: Commit website change and remove one-time workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/add-students-corner.yml
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/add-students-corner.yml
+          git commit -m "Add Students Corner after Govt Teachers Corner"
+          git push
