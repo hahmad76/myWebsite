@@ -23,6 +23,46 @@ document.addEventListener("DOMContentLoaded", () => {
   pm?.addEventListener("change",()=>{if(of)of.hidden=pm.value!=="omni";});
   if(of&&pm&&pm.value!=="omni")of.hidden=true;
   const pf=document.querySelector(".payment-form");pf?.addEventListener("submit",async e=>{e.preventDefault();const msg=pf.querySelector(".form-message"),data=Object.fromEntries(new FormData(pf).entries());if(msg){msg.textContent="Submitting payment reference securely…";msg.removeAttribute("data-error");}try{data.currency=String(data.currency||"").toUpperCase();data.amount_minor=Number(data.amount_minor);const r=await post("/payments",data);if(msg)msg.textContent=r.message||"Payment reference received for administrator verification.";pf.reset();if(of)of.hidden=true;}catch(err){if(msg){msg.textContent=`Unable to submit right now. ${err.message}`;msg.setAttribute("data-error","true");}}});
+
+  /* Government Teachers Corner request center. Each dropdown item opens this form with that service pre-selected. */
+  if(main&&!document.getElementById("govt-teachers-corner")){
+    const resourcesSection=document.getElementById("resources");
+    const govtMarkup=`<section class="section light govt-teachers-section" id="govt-teachers-corner"><div class="container govt-teachers-layout"><div class="section-heading"><span class="eyebrow">GOVT. TEACHERS CORNER</span><h2 id="govt-form-title">Government Teachers Service Request</h2><p>Enter your details and the required service. Your request will be submitted to the Hub for processing.</p><div class="govt-selected-service"><strong>Selected Service:</strong> <span id="govt-selected-service">Please select a service from the Govt. Teachers Corner menu.</span></div></div><form class="card-form govt-teacher-form" id="govt-teacher-form"><input type="hidden" name="service" id="govt-service" value=""><label>Name <input name="name" required autocomplete="name"></label><label>Designation &amp; BPS <input name="designation_bps" required></label><label>School Address <textarea name="school_address" rows="2" required></textarea></label><label>Contact No for WhatsApp <input name="whatsapp" type="tel" required inputmode="tel" autocomplete="tel"></label><label>Email Address <input name="email" type="email" required autocomplete="email"></label><label>Request Detail <textarea name="request_detail" rows="7" required placeholder="Please enter the details of your requirement..."></textarea></label><button class="btn btn-primary" type="submit">Submit →</button><p class="form-message" role="status" aria-live="polite"></p></form></div></section>`;
+    if(resourcesSection)resourcesSection.insertAdjacentHTML("beforebegin",govtMarkup);else main.insertAdjacentHTML("beforeend",govtMarkup);
+  }
+
+  const govtForm=document.getElementById("govt-teacher-form"),govtService=document.getElementById("govt-service"),govtSelected=document.getElementById("govt-selected-service"),govtTitle=document.getElementById("govt-form-title");
+  if(govtForm){
+    const govtMenuLinks=[...document.querySelectorAll('.main-nav .mega-menu a[href="#govt-teachers-corner"]')];
+    govtMenuLinks.forEach(a=>a.addEventListener("click",e=>{
+      e.preventDefault();
+      const service=(a.textContent||"").trim();
+      if(govtService)govtService.value=service;
+      if(govtSelected)govtSelected.textContent=service;
+      if(govtTitle)govtTitle.textContent=service;
+      const wrapper=a.closest(".nav-item");
+      wrapper?.classList.remove("menu-open");
+      wrapper?.querySelector("a")?.setAttribute("aria-expanded","false");
+      nav?.classList.remove("open");
+      toggle?.setAttribute("aria-expanded","false");
+      document.getElementById("govt-teachers-corner")?.scrollIntoView({behavior:"smooth",block:"start"});
+      setTimeout(()=>govtForm.querySelector('input[name="name"]')?.focus(),500);
+    }));
+    govtForm.addEventListener("submit",async e=>{
+      e.preventDefault();
+      const msg=govtForm.querySelector(".form-message"),data=Object.fromEntries(new FormData(govtForm).entries());
+      if(msg){msg.textContent="Submitting securely…";msg.removeAttribute("data-error");}
+      try{
+        const payload={type:"Govt Teacher Service Request",service:data.service,name:data.name,designation_bps:data.designation_bps,school_address:data.school_address,whatsapp:data.whatsapp,email:data.email,request_detail:data.request_detail};
+        const r=await post("/submissions",payload);
+        if(msg)msg.textContent=r.message||"Your request has been received successfully.";
+        govtForm.reset();
+        if(govtSelected)govtSelected.textContent="Please select a service from the Govt. Teachers Corner menu.";
+        if(govtTitle)govtTitle.textContent="Government Teachers Service Request";
+      }catch(err){if(msg){msg.textContent=`Unable to submit right now. ${err.message}`;msg.setAttribute("data-error","true");}}
+    });
+  }
+
   const sections=[...document.querySelectorAll("main section[id]" )],links=[...document.querySelectorAll(".main-nav a,.side-bar a")];
   if("IntersectionObserver"in window){const ob=new IntersectionObserver(es=>{const v=es.filter(x=>x.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(!v)return;links.forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+v.target.id));},{rootMargin:"-35% 0px -55% 0px",threshold:[0,.2,.5]});sections.forEach(s=>ob.observe(s));}
 
@@ -32,9 +72,10 @@ document.addEventListener("DOMContentLoaded", () => {
     .main-nav{gap:6px;align-items:stretch}.nav-item{position:relative;display:flex;align-items:center}.nav-item>a{display:flex;align-items:center;gap:5px;padding:10px 11px;border-radius:8px;white-space:nowrap}.nav-item.has-menu>a::after{content:"⌄";font-size:12px;line-height:1;opacity:.65;transition:transform .2s ease}.nav-item.has-menu:hover>a::after,.nav-item.has-menu:focus-within>a::after{transform:rotate(180deg)}.nav-item>a:hover,.nav-item>a.active{background:#f1f7fd;color:#0b5cab}
     .mega-menu{position:absolute;left:50%;top:calc(100% + 9px);transform:translate(-50%,-8px);width:300px;padding:10px;background:#fff;border:1px solid #dce6ef;border-radius:13px;box-shadow:0 18px 45px rgba(22,54,88,.16);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,transform .18s ease,visibility .18s ease;z-index:80}.mega-menu::before{content:"";position:absolute;top:-6px;left:50%;width:11px;height:11px;background:#fff;border-left:1px solid #dce6ef;border-top:1px solid #dce6ef;transform:translateX(-50%) rotate(45deg)}.nav-item.has-menu:hover .mega-menu,.nav-item.has-menu:focus-within .mega-menu,.nav-item.has-menu.menu-open .mega-menu{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}
     .mega-menu-title{display:block;padding:7px 10px 9px;color:#0b5cab;font-size:10px;font-weight:900;letter-spacing:1.1px;border-bottom:1px solid #edf1f5}.mega-menu a{display:flex!important;align-items:center;gap:9px;padding:9px 10px!important;border-radius:8px;font-size:12px;font-weight:750;color:#40516a;white-space:normal}.mega-menu a::before{content:"→";color:#0b5cab;font-weight:900}.mega-menu a:hover{background:#f5f9fd;color:#0b5cab}.nav-item.simple>a{padding-left:11px;padding-right:11px}
+    .govt-teachers-layout{display:grid;grid-template-columns:.85fr 1.15fr;gap:55px;align-items:start}.govt-selected-service{margin-top:20px;padding:13px 15px;background:#fff;border:1px solid #dfe7ef;border-radius:10px;font-size:12px;color:#68758a}.govt-selected-service strong{color:#43536a}.govt-teacher-form label{margin-bottom:14px}.govt-teacher-form .btn{width:100%;margin-top:4px}.govt-teacher-form textarea{resize:vertical}
     @media(min-width:701px){.main-nav>.nav-item:last-child{margin-left:4px}.main-nav>.nav-item:last-child>a{padding:10px 15px}}
-    @media(max-width:1000px) and (min-width:701px){.nav-item>a{padding-left:7px;padding-right:7px}.main-nav{gap:2px;font-size:12px}.mega-menu{width:270px}}
-    @media(max-width:700px){.main-nav{gap:0}.nav-item{display:block}.nav-item>a{justify-content:space-between;width:100%;padding:10px}.mega-menu{position:static;width:100%;transform:none!important;margin:2px 0 5px;padding:5px;box-shadow:none;border-radius:9px;display:none;opacity:1;visibility:visible;pointer-events:auto}.nav-item.has-menu.menu-open .mega-menu{display:block}.mega-menu::before{display:none}.mega-menu a{padding:8px 10px!important}.nav-item.has-menu>a::after{content:"+";font-size:15px}.nav-item.has-menu.menu-open>a::after{content:"−"}.nav-cta{margin-top:5px}}
+    @media(max-width:1000px) and (min-width:701px){.nav-item>a{padding-left:7px;padding-right:7px}.main-nav{gap:2px;font-size:12px}.mega-menu{width:270px}.govt-teachers-layout{grid-template-columns:1fr}}
+    @media(max-width:700px){.main-nav{gap:0}.nav-item{display:block}.nav-item>a{justify-content:space-between;width:100%;padding:10px}.mega-menu{position:static;width:100%;transform:none!important;margin:2px 0 5px;padding:5px;box-shadow:none;border-radius:9px;display:none;opacity:1;visibility:visible;pointer-events:auto}.nav-item.has-menu.menu-open .mega-menu{display:block}.mega-menu::before{display:none}.mega-menu a{padding:8px 10px!important}.nav-item.has-menu>a::after{content:"+";font-size:15px}.nav-item.has-menu.menu-open>a::after{content:"−"}.nav-cta{margin-top:5px}.govt-teachers-layout{grid-template-columns:1fr}.govt-selected-service{margin-bottom:5px}}
   `;
   document.head.appendChild(style);
 
