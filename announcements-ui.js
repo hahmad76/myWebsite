@@ -26,33 +26,48 @@ document.addEventListener('DOMContentLoaded', () => {
     #updates .announcement-ticker-window{position:relative;overflow:hidden;flex:1;min-width:0}
     #updates .announcement-ticker-track{display:flex;width:max-content;animation:sshpTicker 28s linear infinite;padding:0}
     #updates .announcement-ticker:hover .announcement-ticker-track{animation-play-state:paused}
-    #updates .announcement-ticker-item{display:flex;align-items:center;color:#fff;font-size:13px;font-weight:650;white-space:nowrap;padding:12px 22px}
+    #updates .announcement-ticker-item{display:flex;align-items:center;color:#fff;font-size:13px;font-weight:700;white-space:nowrap;padding:12px 22px}
     #updates .announcement-ticker-item::after{content:'•';opacity:.5;margin-left:22px}
     #updates .announcement-controls{display:flex;gap:4px;padding:5px;background:#102b52}
     #updates .announcement-controls button{border:0;background:rgba(255,255,255,.12);color:#fff;border-radius:6px;width:30px;height:30px;cursor:pointer;font-size:16px}
     #updates .announcement-controls button:hover{background:rgba(255,255,255,.22)}
+
+    /* Separate announcement belts */
     #updates .announcement-list{display:grid;gap:12px}
-    #updates .announcement-item{display:grid;grid-template-columns:48px minmax(0,1fr) auto 24px;align-items:center;gap:15px;padding:16px 18px;background:#fff;border:1px solid #e1e8ef;border-radius:12px;box-shadow:0 5px 18px rgba(25,55,85,.06);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
-    #updates .announcement-item:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(25,55,85,.10);border-color:#c9d9e8}
-    #updates .announcement-icon{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#edf5ff;font-size:21px}
+    #updates .announcement-item{display:grid;grid-template-columns:52px minmax(0,1fr) auto 24px;align-items:center;gap:15px;padding:16px 18px;background:#fff;border:2px solid #e2e8ef;border-left:5px solid #e63946;border-radius:10px;box-shadow:0 5px 18px rgba(25,55,85,.07);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+    #updates .announcement-item:nth-child(even){background:#fff9f9}
+    #updates .announcement-item:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(25,55,85,.12);border-color:#f0b5ba}
+
+    /* Red loudspeaker badge */
+    #updates .announcement-icon{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#e63946;color:#fff;font-size:22px;box-shadow:0 4px 10px rgba(230,57,70,.22)}
     #updates .announcement-main{min-width:0}
     #updates .announcement-category{display:inline-block;margin-bottom:4px;padding:3px 8px;border-radius:5px;background:#edf5ff;color:#0b5cab;font-size:9px;font-weight:900;letter-spacing:.6px;text-transform:uppercase}
-    #updates .announcement-title{margin:0 0 3px;color:#172b4d;font-size:17px;line-height:1.25;font-weight:800}
-    #updates .announcement-description{margin:0;color:#56677d;font-size:13px;line-height:1.5}
+    #updates .announcement-title{margin:0 0 3px;color:#15243a;font-size:18px;line-height:1.3;font-weight:900}
+    #updates .announcement-description{margin:0;color:#45576d;font-size:13px;line-height:1.5;font-weight:600}
     #updates .announcement-date{white-space:nowrap;color:#62738a;font-size:12px;font-weight:650}
-    #updates .announcement-arrow{color:#0b5cab;font-size:20px;font-weight:700}
-    #updates .announcement-empty{padding:22px;background:#f7fafc;border:1px dashed #cfdbe7;border-radius:12px;color:#68788c;text-align:center}
+    #updates .announcement-arrow{color:#e63946;font-size:22px;font-weight:900}
+
+    /* Blinking NEW star */
+    #updates .announcement-star{display:inline-block;margin-left:9px;color:#e63946;font-size:16px;font-weight:900;animation:sshpAnnouncementStar 1s steps(2,start) infinite;vertical-align:2px}
+    @keyframes sshpAnnouncementStar{50%{opacity:.25;transform:scale(.85)}100%{opacity:1;transform:scale(1)}}
     @keyframes sshpTicker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+    #updates .announcement-empty{padding:22px;background:#f7fafc;border:1px dashed #cfdbe7;border-radius:12px;color:#68788c;text-align:center}
+    @media(prefers-reduced-motion:reduce){
+      #updates .announcement-ticker-track{animation:none}
+      #updates .announcement-star{animation:none}
+    }
     @media(max-width:700px){
       #updates .announcement-ticker{display:block}
       #updates .announcement-ticker-label{display:block;text-align:center}
       #updates .announcement-controls{justify-content:center}
-      #updates .announcement-item{grid-template-columns:40px minmax(0,1fr);gap:11px;padding:13px}
+      #updates .announcement-item{grid-template-columns:40px minmax(0,1fr);gap:11px;padding:13px;border-left-width:4px}
       #updates .announcement-icon{width:38px;height:38px;font-size:18px}
       #updates .announcement-date{grid-column:2;font-size:11px}
       #updates .announcement-arrow{display:none}
-      #updates .announcement-title{font-size:15px}
+      #updates .announcement-title{font-size:16px}
       #updates .announcement-description{font-size:12px}
+      #updates .announcement-star{font-size:14px}
     }
   `;
   document.head.appendChild(style);
@@ -77,14 +92,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const tickerItems = announcements.map(a => `<span class="announcement-ticker-item">${esc(a.title)}${a.description ? ` — ${esc(a.description)}` : ''}</span>`).join('');
+      const tickerItems = announcements.map(a => `<span class="announcement-ticker-item">📢 ${esc(a.title)}${a.description ? ` — ${esc(a.description)}` : ''}</span>`).join('');
       const tickerTrack = tickerItems + tickerItems;
       const list = announcements.map(a => `
         <article class="announcement-item">
-          <div class="announcement-icon" aria-hidden="true">${categoryIcon(a.category)}</div>
+          <div class="announcement-icon" aria-hidden="true">📢</div>
           <div class="announcement-main">
             ${a.category ? `<span class="announcement-category">${esc(a.category)}</span>` : ''}
-            <h3 class="announcement-title">${esc(a.title)}</h3>
+            <h3 class="announcement-title">${esc(a.title)} <span class="announcement-star" aria-label="New announcement" title="New announcement">★</span></h3>
             ${a.description ? `<p class="announcement-description">${esc(a.description)}</p>` : ''}
           </div>
           <time class="announcement-date">📅 ${formatDate(a.created_at || a.updated_at)}</time>
@@ -100,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <button type="button" class="ticker-next" aria-label="Next announcement">›</button>
           </div>
         </div>
-        <div class="announcement-list">${list}</div>`;
+        <div class="announcement-list" aria-label="Announcements">${list}</div>`;
 
       const track = ui.querySelector('.announcement-ticker-track');
       const prev = ui.querySelector('.ticker-prev');
