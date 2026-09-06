@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
-/* SSHP Direct Recruitment API. Requires the same api/config.php as the main API. */
+/* SSHP Direct Recruitment API v2. Requires api/config.php and career-schema.sql + career-migration-v2.sql. */
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
+
 $configFile=__DIR__.'/config.php';
 $config=is_file($configFile)?(require $configFile):[];
 $config=is_array($config)?$config:[];
@@ -11,24 +12,102 @@ $env=function($k,$d=''){ $v=getenv($k); return ($v===false||$v==='')?$d:$v; };
 $cfg=function($k,$d='')use(&$config,$env){return $config[$k]??$env($k,$d);};
 function out(int $s,array $d):never{http_response_code($s);echo json_encode($d,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}
 function body():array{$r=file_get_contents('php://input')?:'';$d=json_decode($r,true);return is_array($d)?$d:[];}
-function id():string{return bin2hex(random_bytes(16));} function now():string{return gmdate('Y-m-d H:i:s');}
-try{$pdo=new PDO('mysql:host='.$cfg('db_host','localhost').';port='.$cfg('db_port','3306').';dbname='.$cfg('db_name').';charset=utf8mb4',(string)$cfg('db_user'),(string)$cfg('db_pass'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);}catch(Throwable $e){out(500,['success'=>false,'error'=>'Career database is not configured. Import career-schema.sql first.']);}
+function id():string{return bin2hex(random_bytes(16));}
+function now():string{return gmdate('Y-m-d H:i:s');}
+function cleanMoney($v):?float{if($v===null||$v==='')return null;return is_numeric($v)&&$v>=0?(float)$v:null;}
+try{
+ $pdo=new PDO('mysql:host='.$cfg('db_host','localhost').';port='.$cfg('db_port','3306').';dbname='.$cfg('db_name').';charset=utf8mb4',(string)$cfg('db_user'),(string)$cfg('db_pass'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,PDO::ATTR_EMULATE_PREPARES=>false]);
+}catch(Throwable $e){out(500,['success'=>false,'error'=>'Career database is not configured. Import career-schema.sql and career-migration-v2.sql first.']);}
 function currentUser(PDO $p):?array{$h=$_SERVER['HTTP_AUTHORIZATION']??'';if(!preg_match('/^Bearer\s+(.+)$/i',$h,$m))return null;$s=$p->prepare('SELECT u.* FROM career_sessions s JOIN career_users u ON u.id=s.user_id WHERE s.id=? AND s.expires_at>? AND u.status="active" LIMIT 1');$s->execute([hash('sha256',$m[1]),time()]);return$s->fetch()?:null;}
 function needUser(PDO $p):array{$u=currentUser($p);if(!$u)out(401,['success'=>false,'error'=>'Please sign in first.']);return$u;}
 function notify(PDO $p,string $uid,string $title,string $message,string $type='',?string $eid=null):void{$p->prepare('INSERT INTO career_notifications(id,user_id,title,message,entity_type,entity_id,created_at) VALUES(?,?,?,?,?,?,?)')->execute([id(),$uid,$title,$message,$type,$eid,now()]);}
-function userPublic(array $u):array{$p=$u['profile_json']?json_decode((string)$u['profile_json'],true):[];return['id'=>$u['id'],'role'=>$u['role'],'name'=>$u['name'],'email'=>$u['email'],'phone'=>$u['phone'],'profile'=>$p];}
-$m=$_SERVER['REQUEST_METHOD']??'GET';$path=parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)?:''; $path=preg_replace('#^/api/career\.php#','',$path)?:'/';
+function userPublic(array $u,bool $showContact=false):array{return['id'=>$u['id'],'role'=>$u['role'],'name'=>$u['name'],'email'=>$showContact?$u['email']:null,'phone'=>$showContact?$u['phone']:null,'qualification'=>$u['qualification']??null,'address'=>$u['address']??null,'experience'=>$u['experience']??null,'salary_min'=>$u['salary_min']??null,'salary_max'=>$u['salary_max']??null,'description'=>$u['description']??null,'profile'=>$u['profile_json']?json_decode((string)$u['profile_json'],true):[]];}
+$m=$_SERVER['REQUEST_METHOD']??'GET';$path=parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)?:'';$path=preg_replace('#^/api/career\.php#','',$path)?:'/';
 try{
-if($m==='GET'&&$path==='/health')out(200,['success'=>true,'service'=>'SSHP Career Portal','status'=>'ok']);
-if($m==='POST'&&$path==='/register'){$b=body();$role=$b['role']??'';if(!in_array($role,['school','teacher'],true))out(422,['success'=>false,'error'=>'Choose school or teacher.']);$name=trim((string)($b['name']??''));$email=strtolower(trim((string)($b['email']??'')));$phone=trim((string)($b['phone']??''));$pass=(string)($b['password']??'');if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL)||$phone===''||strlen($pass)<8)out(422,['success'=>false,'error'=>'Name, valid email, phone and password of at least 8 characters are required.']);$profile=$b['profile']??[];$s=$pdo->prepare('SELECT id FROM career_users WHERE email=?');$s->execute([$email]);if($s->fetch())out(409,['success'=>false,'error'=>'An account with this email already exists.']);$uid=id();$pdo->prepare('INSERT INTO career_users(id,role,name,email,phone,password_hash,profile_json,created_at) VALUES(?,?,?,?,?,?,?,?)')->execute([$uid,$role,$name,$email,$phone,password_hash($pass,PASSWORD_DEFAULT),json_encode($profile,JSON_UNESCAPED_UNICODE),now()]);out(201,['success'=>true,'message'=>'Account created. You can now sign in.']);}
-if($m==='POST'&&$path==='/login'){$b=body();$s=$pdo->prepare('SELECT * FROM career_users WHERE email=? AND status="active" LIMIT 1');$s->execute([strtolower(trim((string)($b['email']??'')))]);$u=$s->fetch();if(!$u||!password_verify((string)($b['password']??''),(string)$u['password_hash']))out(401,['success'=>false,'error'=>'Invalid email or password.']);$token=bin2hex(random_bytes(32));$pdo->prepare('DELETE FROM career_sessions WHERE expires_at<=?')->execute([time()]);$pdo->prepare('INSERT INTO career_sessions(id,user_id,expires_at,created_at) VALUES(?,?,?,?)')->execute([hash('sha256',$token),$u['id'],time()+28800,now()]);out(200,['success'=>true,'token'=>$token,'user'=>userPublic($u)]);}
-if($m==='POST'&&$path==='/logout'){$u=currentUser($pdo);$h=$_SERVER['HTTP_AUTHORIZATION']??'';if($h&&preg_match('/^Bearer\s+(.+)$/i',$h,$x))$pdo->prepare('DELETE FROM career_sessions WHERE id=?')->execute([hash('sha256',$x[1])]);out(200,['success'=>true]);}
-if($m==='GET'&&$path==='/vacancies'){$s=$pdo->query('SELECT v.*,u.name school_name FROM vacancies v JOIN career_users u ON u.id=v.school_user_id WHERE v.status="open" ORDER BY v.created_at DESC');$rows=$s->fetchAll();foreach($rows as&$r)$r['school']=$r['school_name'];out(200,['success'=>true,'data'=>$rows]);}
-if($m==='POST'&&$path==='/vacancies'){$u=needUser($pdo);if($u['role']!=='school')out(403,['success'=>false,'error'=>'Only school accounts can post vacancies.']);$b=body();foreach(['title','subject','qualification','location'] as $f)if(trim((string)($b[$f]??''))==='')out(422,['success'=>false,'error'=>ucfirst($f).' is required.']);$vid=id();$pdo->prepare('INSERT INTO vacancies(id,school_user_id,title,subject,qualification,location,employment_type,details,created_at) VALUES(?,?,?,?,?,?,?,?,?)')->execute([$vid,$u['id'],trim($b['title']),trim($b['subject']),trim($b['qualification']),trim($b['location']),trim((string)($b['employment_type']??'Full-time')),trim((string)($b['details']??'')),now()]);out(201,['success'=>true,'message'=>'Vacancy published successfully.','id'=>$vid]);}
-if($m==='POST'&&$path==='/apply'){$u=needUser($pdo);if($u['role']!=='teacher')out(403,['success'=>false,'error'=>'Only teacher accounts can apply.']);$b=body();$vid=(string)($b['vacancy_id']??'');$s=$pdo->prepare('SELECT v.*,u.name school_name,u.id school_user_id FROM vacancies v JOIN career_users u ON u.id=v.school_user_id WHERE v.id=? AND v.status="open"');$s->execute([$vid]);$v=$s->fetch();if(!$v)out(404,['success'=>false,'error'=>'Vacancy not found or closed.']);$aid=id();try{$pdo->prepare('INSERT INTO job_applications(id,vacancy_id,teacher_user_id,cover_note,created_at) VALUES(?,?,?,?,?)')->execute([$aid,$vid,$u['id'],trim((string)($b['cover_note']??'')),now()]);}catch(PDOException $e){out(409,['success'=>false,'error'=>'You have already applied for this vacancy.']);}notify($pdo,$v['school_user_id'],'New teacher application','A teacher has applied for your vacancy: '.$v['title'],'application',$aid);out(201,['success'=>true,'message'=>'Application sent. The school has been notified.','id'=>$aid]);}
-if($m==='GET'&&$path==='/dashboard'){$u=needUser($pdo);$data=['user'=>userPublic($u),'notifications'=>[],'vacancies'=>[],'applications'=>[]];$s=$pdo->prepare('SELECT * FROM career_notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 50');$s->execute([$u['id']]);$data['notifications']=$s->fetchAll();if($u['role']==='school'){$s=$pdo->prepare('SELECT * FROM vacancies WHERE school_user_id=? ORDER BY created_at DESC');$s->execute([$u['id']]);$data['vacancies']=$s->fetchAll();$s=$pdo->prepare('SELECT a.*,v.title,v.subject,t.name teacher_name,t.email teacher_email,t.phone teacher_phone,t.profile_json teacher_profile FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id JOIN career_users t ON t.id=a.teacher_user_id WHERE v.school_user_id=? ORDER BY a.created_at DESC');$s->execute([$u['id']]);$data['applications']=$s->fetchAll();foreach($data['applications'] as&$a){$a['teacher_profile']=$a['teacher_profile']?json_decode((string)$a['teacher_profile'],true):[];}}else{$s=$pdo->prepare('SELECT a.*,v.title,v.subject,v.qualification,v.location,v.status vacancy_status,u.name school_name,u.email school_email,u.phone school_phone FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id JOIN career_users u ON u.id=v.school_user_id WHERE a.teacher_user_id=? ORDER BY a.created_at DESC');$s->execute([$u['id']]);$data['applications']=$s->fetchAll();}out(200,['success'=>true,'data'=>$data]);}
-if($m==='PATCH'&&preg_match('#^/applications/([^/]+)$#',$path,$mm)){$u=needUser($pdo);$b=body();$status=$b['status']??'';if(!in_array($status,['shortlisted','interview','rejected','accepted'],true))out(422,['success'=>false,'error'=>'Invalid application status.']);$s=$pdo->prepare('SELECT a.*,v.title,v.school_user_id,t.name teacher_name,t.id teacher_user_id FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id JOIN career_users t ON t.id=a.teacher_user_id WHERE a.id=?');$s->execute([$mm[1]]);$a=$s->fetch();if(!$a)out(404,['success'=>false,'error'=>'Application not found.']);if($u['role']!=='school'||$u['id']!==$a['school_user_id'])out(403,['success'=>false,'error'=>'Only the vacancy-owning school can change application status.']);$pdo->prepare('UPDATE job_applications SET status=?,updated_at=? WHERE id=?')->execute([$status,now(),$a['id']]);$label=ucfirst($status);notify($pdo,$a['teacher_user_id'],'Application status updated','Your application for "'.$a['title'].'" is now '.$status.'.','application',$a['id']);out(200,['success'=>true,'message'=>'Application marked '.$status.'.']);}
-if($m==='POST'&&$path==='/message'){$u=needUser($pdo);$b=body();$aid=(string)($b['application_id']??'');$msg=trim((string)($b['message']??''));if($msg==='')out(422,['success'=>false,'error'=>'Message is required.']);$s=$pdo->prepare('SELECT a.*,v.school_user_id,t.id teacher_user_id FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id JOIN career_users t ON t.id=a.teacher_user_id WHERE a.id=?');$s->execute([$aid]);$a=$s->fetch();if(!$a||!in_array($u['id'],[$a['school_user_id'],$a['teacher_user_id']],true))out(403,['success'=>false,'error'=>'You are not part of this application.']);if(!in_array($a['status'],['shortlisted','interview','accepted'],true))out(403,['success'=>false,'error'=>'Direct communication becomes available after shortlisting or interview invitation.']);$pdo->prepare('INSERT INTO career_messages(id,application_id,sender_user_id,message,created_at) VALUES(?,?,?,?,?)')->execute([id(),$aid,$u['id'],$msg,now()]);$recipient=$u['id']===$a['school_user_id']?$a['teacher_user_id']:$a['school_user_id'];notify($pdo,$recipient,'New recruitment message',$msg,'message',$aid);out(201,['success'=>true,'message'=>'Message sent.']);}
-if($m==='GET'&&preg_match('#^/messages/([^/]+)$#',$path,$mm)){$u=needUser($pdo);$s=$pdo->prepare('SELECT a.*,v.school_user_id,t.teacher_user_id FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id JOIN (SELECT id teacher_user_id FROM job_applications WHERE id=?) t ON t.teacher_user_id=a.teacher_user_id WHERE a.id=?');$s=$pdo->prepare('SELECT a.status,a.teacher_user_id,v.school_user_id FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id WHERE a.id=?');$s->execute([$mm[1]]);$a=$s->fetch();if(!$a||!in_array($u['id'],[$a['school_user_id'],$a['teacher_user_id']],true))out(403,['success'=>false,'error'=>'Access denied.']);$s=$pdo->prepare('SELECT m.*,u.name sender_name FROM career_messages m JOIN career_users u ON u.id=m.sender_user_id WHERE m.application_id=? ORDER BY m.created_at ASC');$s->execute([$mm[1]]);out(200,['success'=>true,'data'=>$s->fetchAll(),'direct_contact'=>in_array($a['status'],['shortlisted','interview','accepted'],true)]);}
-out(404,['success'=>false,'error'=>'Career route not found.']);
+ if($m==='GET'&&$path==='/health')out(200,['success'=>true,'service'=>'SSHP Career Portal','status'=>'ok']);
+
+ if($m==='POST'&&$path==='/register'){
+  $b=body();$role=$b['role']??'';if(!in_array($role,['school','teacher'],true))out(422,['success'=>false,'error'=>'Choose school or teacher.']);
+  $name=trim((string)($b['name']??''));$email=strtolower(trim((string)($b['email']??'')));$phone=trim((string)($b['phone']??''));$pass=(string)($b['password']??'');
+  if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL)||$phone===''||strlen($pass)<8)out(422,['success'=>false,'error'=>'Name, valid email, phone and password of at least 8 characters are required.']);
+  $qualification=trim((string)($b['qualification']??''));$address=trim((string)($b['address']??''));$experience=trim((string)($b['experience']??''));$salaryMin=cleanMoney($b['salary_min']??null);$salaryMax=cleanMoney($b['salary_max']??null);$description=trim((string)($b['description']??''));
+  if($role==='teacher'&&$qualification==='')out(422,['success'=>false,'error'=>'Teacher qualification is required.']);
+  if($address==='')out(422,['success'=>false,'error'=>'Address is required.']);
+  if($salaryMin!==null&&$salaryMax!==null&&$salaryMax<$salaryMin)out(422,['success'=>false,'error'=>'Maximum salary cannot be lower than minimum salary.']);
+  $s=$pdo->prepare('SELECT id FROM career_users WHERE email=?');$s->execute([$email]);if($s->fetch())out(409,['success'=>false,'error'=>'An account with this email already exists.']);
+  $uid=id();$profile=$b['profile']??[];$pdo->prepare('INSERT INTO career_users(id,role,name,email,phone,qualification,address,experience,salary_min,salary_max,description,password_hash,profile_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)')->execute([$uid,$role,$name,$email,$phone,$qualification,$address,$experience,$salaryMin,$salaryMax,$description,password_hash($pass,PASSWORD_DEFAULT),json_encode($profile,JSON_UNESCAPED_UNICODE),now()]);
+  out(201,['success'=>true,'message'=>'Account created. You can now sign in.']);
+ }
+
+ if($m==='POST'&&$path==='/login'){
+  $b=body();$s=$pdo->prepare('SELECT * FROM career_users WHERE email=? AND status="active" LIMIT 1');$s->execute([strtolower(trim((string)($b['email']??'')))]);$u=$s->fetch();
+  if(!$u||!password_verify((string)($b['password']??''),(string)$u['password_hash']))out(401,['success'=>false,'error'=>'Invalid email or password.']);
+  $token=bin2hex(random_bytes(32));$pdo->prepare('DELETE FROM career_sessions WHERE expires_at<=?')->execute([time()]);$pdo->prepare('INSERT INTO career_sessions(id,user_id,expires_at,created_at) VALUES(?,?,?,?)')->execute([hash('sha256',$token),$u['id'],time()+28800,now()]);
+  out(200,['success'=>true,'token'=>$token,'user'=>userPublic($u,true)]);
+ }
+ if($m==='POST'&&$path==='/logout'){$h=$_SERVER['HTTP_AUTHORIZATION']??'';if($h&&preg_match('/^Bearer\s+(.+)$/i',$h,$x))$pdo->prepare('DELETE FROM career_sessions WHERE id=?')->execute([hash('sha256',$x[1])]);out(200,['success'=>true]);}
+
+ if($m==='GET'&&$path==='/vacancies'){
+  $q=trim((string)($_GET['q']??''));$location=trim((string)($_GET['location']??''));$subject=trim((string)($_GET['subject']??''));
+  $sql='SELECT v.*,u.name school_name,u.address school_address FROM vacancies v JOIN career_users u ON u.id=v.school_user_id WHERE v.status="open"';$args=[];
+  if($q!==''){$sql.=' AND (v.title LIKE ? OR v.subject LIKE ? OR v.qualification LIKE ? OR v.details LIKE ? OR u.name LIKE ?)';$x='%'.$q.'%';array_push($args,$x,$x,$x,$x,$x);}
+  if($location!==''){$sql.=' AND (v.location LIKE ? OR u.address LIKE ?)';$x='%'.$location.'%';$args[]=$x;$args[]=$x;}
+  if($subject!==''){$sql.=' AND v.subject LIKE ?';$args[]='%'.$subject.'%';}
+  $sql.=' ORDER BY v.created_at DESC';$s=$pdo->prepare($sql);$s->execute($args);$rows=$s->fetchAll();out(200,['success'=>true,'data'=>$rows]);
+ }
+
+ if($m==='POST'&&$path==='/vacancies'){
+  $u=needUser($pdo);if($u['role']!=='school')out(403,['success'=>false,'error'=>'Only school accounts can post vacancies.']);$b=body();
+  foreach(['title','subject','qualification','location'] as $f)if(trim((string)($b[$f]??''))==='')out(422,['success'=>false,'error'=>ucfirst($f).' is required.']);
+  $salaryMin=cleanMoney($b['salary_min']??null);$salaryMax=cleanMoney($b['salary_max']??null);$openings=(int)($b['openings']??1);if($openings<1)$openings=1;if($salaryMin!==null&&$salaryMax!==null&&$salaryMax<$salaryMin)out(422,['success'=>false,'error'=>'Maximum salary cannot be lower than minimum salary.']);
+  $vid=id();$pdo->prepare('INSERT INTO vacancies(id,school_user_id,title,subject,qualification,location,employment_type,salary_min,salary_max,openings,details,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')->execute([$vid,$u['id'],trim($b['title']),trim($b['subject']),trim($b['qualification']),trim($b['location']),trim((string)($b['employment_type']??'Full-time')),$salaryMin,$salaryMax,$openings,trim((string)($b['details']??'')),now()]);
+  out(201,['success'=>true,'message'=>'Vacancy published successfully.','id'=>$vid]);
+ }
+
+ if($m==='GET'&&$path==='/teachers'){
+  $u=currentUser($pdo);$showContact=$u&&$u['role']==='school';$q=trim((string)($_GET['q']??''));$location=trim((string)($_GET['location']??''));$qualification=trim((string)($_GET['qualification']??''));$experience=trim((string)($_GET['experience']??''));
+  $sql='SELECT id,role,name,email,phone,qualification,address,experience,salary_min,salary_max,description,profile_json FROM career_users WHERE role="teacher" AND status="active"';$args=[];
+  if($q!==''){$sql.=' AND (name LIKE ? OR qualification LIKE ? OR experience LIKE ? OR description LIKE ?)';$x='%'.$q.'%';array_push($args,$x,$x,$x,$x);}
+  if($location!==''){$sql.=' AND address LIKE ?';$args[]='%'.$location.'%';}
+  if($qualification!==''){$sql.=' AND qualification LIKE ?';$args[]='%'.$qualification.'%';}
+  if($experience!==''){$sql.=' AND experience LIKE ?';$args[]='%'.$experience.'%';}
+  $sql.=' ORDER BY created_at DESC LIMIT 100';$s=$pdo->prepare($sql);$s->execute($args);$rows=$s->fetchAll();$rows=array_map(fn($r)=>userPublic($r,$showContact),$rows);out(200,['success'=>true,'data'=>$rows,'contact_visible'=>$showContact]);
+ }
+
+ if($m==='POST'&&$path==='/apply'){
+  $u=needUser($pdo);if($u['role']!=='teacher')out(403,['success'=>false,'error'=>'Only teacher accounts can apply.']);$b=body();$vid=(string)($b['vacancy_id']??'');
+  $s=$pdo->prepare('SELECT v.*,u.name school_name,u.id school_user_id FROM vacancies v JOIN career_users u ON u.id=v.school_user_id WHERE v.id=? AND v.status="open"');$s->execute([$vid]);$v=$s->fetch();if(!$v)out(404,['success'=>false,'error'=>'Vacancy not found or closed.']);
+  $aid=id();try{$pdo->prepare('INSERT INTO job_applications(id,vacancy_id,teacher_user_id,cover_note,created_at) VALUES(?,?,?,?,?)')->execute([$aid,$vid,$u['id'],trim((string)($b['cover_note']??'')),now()]);}catch(PDOException $e){out(409,['success'=>false,'error'=>'You have already applied for this vacancy.']);}
+  notify($pdo,$v['school_user_id'],'New teacher application','A teacher has applied for your vacancy: '.$v['title'],'application',$aid);out(201,['success'=>true,'message'=>'Application sent. The school has been notified.','id'=>$aid]);
+ }
+
+ if($m==='GET'&&$path==='/dashboard'){
+  $u=needUser($pdo);$data=['user'=>userPublic($u,true),'notifications'=>[],'vacancies'=>[],'applications'=>[]];$s=$pdo->prepare('SELECT * FROM career_notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 50');$s->execute([$u['id']]);$data['notifications']=$s->fetchAll();
+  if($u['role']==='school'){
+   $s=$pdo->prepare('SELECT * FROM vacancies WHERE school_user_id=? ORDER BY created_at DESC');$s->execute([$u['id']]);$data['vacancies']=$s->fetchAll();
+   $s=$pdo->prepare('SELECT a.*,v.title,v.subject,t.name teacher_name,t.email teacher_email,t.phone teacher_phone,t.qualification teacher_qualification,t.address teacher_address,t.experience teacher_experience,t.salary_min teacher_salary_min,t.salary_max teacher_salary_max,t.description teacher_description,t.profile_json teacher_profile FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id JOIN career_users t ON t.id=a.teacher_user_id WHERE v.school_user_id=? ORDER BY a.created_at DESC');$s->execute([$u['id']]);$data['applications']=$s->fetchAll();
+   foreach($data['applications'] as&$a)$a['teacher_profile']=$a['teacher_profile']?json_decode((string)$a['teacher_profile'],true):[];
+  }else{
+   $s=$pdo->prepare('SELECT a.*,v.title,v.subject,v.qualification,v.location,v.salary_min,v.salary_max,v.openings,v.status vacancy_status,u.name school_name,u.address school_address,u.email school_email,u.phone school_phone FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id JOIN career_users u ON u.id=v.school_user_id WHERE a.teacher_user_id=? ORDER BY a.created_at DESC');$s->execute([$u['id']]);$data['applications']=$s->fetchAll();
+  }
+  out(200,['success'=>true,'data'=>$data]);
+ }
+
+ if($m==='PATCH'&&preg_match('#^/applications/([^/]+)$#',$path,$mm)){
+  $u=needUser($pdo);$status=(string)(body()['status']??'');if(!in_array($status,['shortlisted','interview','rejected','accepted'],true))out(422,['success'=>false,'error'=>'Invalid application status.']);
+  $s=$pdo->prepare('SELECT a.*,v.title,v.school_user_id,t.name teacher_name,t.id teacher_user_id FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id JOIN career_users t ON t.id=a.teacher_user_id WHERE a.id=?');$s->execute([$mm[1]]);$a=$s->fetch();if(!$a)out(404,['success'=>false,'error'=>'Application not found.']);if($u['role']!=='school'||$u['id']!==$a['school_user_id'])out(403,['success'=>false,'error'=>'Only the vacancy-owning school can change application status.']);
+  $pdo->prepare('UPDATE job_applications SET status=?,updated_at=? WHERE id=?')->execute([$status,now(),$a['id']]);notify($pdo,$a['teacher_user_id'],'Application status updated','Your application for "'.$a['title'].'" is now '.$status.'.','application',$a['id']);out(200,['success'=>true,'message'=>'Application marked '.$status.'.']);
+ }
+
+ if($m==='POST'&&$path==='/message'){
+  $u=needUser($pdo);$b=body();$aid=(string)($b['application_id']??'');$msg=trim((string)($b['message']??''));if($msg==='')out(422,['success'=>false,'error'=>'Message is required.']);
+  $s=$pdo->prepare('SELECT a.*,v.school_user_id,t.id teacher_user_id FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id JOIN career_users t ON t.id=a.teacher_user_id WHERE a.id=?');$s->execute([$aid]);$a=$s->fetch();if(!$a||!in_array($u['id'],[$a['school_user_id'],$a['teacher_user_id']],true))out(403,['success'=>false,'error'=>'You are not part of this application.']);if(!in_array($a['status'],['shortlisted','interview','accepted'],true))out(403,['success'=>false,'error'=>'Direct communication becomes available after shortlisting or interview invitation.']);
+  $pdo->prepare('INSERT INTO career_messages(id,application_id,sender_user_id,message,created_at) VALUES(?,?,?,?,?)')->execute([id(),$aid,$u['id'],$msg,now()]);$recipient=$u['id']===$a['school_user_id']?$a['teacher_user_id']:$a['school_user_id'];notify($pdo,$recipient,'New recruitment message',$msg,'message',$aid);out(201,['success'=>true,'message'=>'Message sent.']);
+ }
+
+ if($m==='GET'&&preg_match('#^/messages/([^/]+)$#',$path,$mm)){
+  $u=needUser($pdo);$s=$pdo->prepare('SELECT a.status,a.teacher_user_id,v.school_user_id FROM job_applications a JOIN vacancies v ON v.id=a.vacancy_id WHERE a.id=?');$s->execute([$mm[1]]);$a=$s->fetch();if(!$a||!in_array($u['id'],[$a['school_user_id'],$a['teacher_user_id']],true))out(403,['success'=>false,'error'=>'Access denied.']);
+  $s=$pdo->prepare('SELECT m.*,u.name sender_name FROM career_messages m JOIN career_users u ON u.id=m.sender_user_id WHERE m.application_id=? ORDER BY m.created_at ASC');$s->execute([$mm[1]]);out(200,['success'=>true,'data'=>$s->fetchAll(),'direct_contact'=>in_array($a['status'],['shortlisted','interview','accepted'],true)]);
+ }
+ out(404,['success'=>false,'error'=>'Career route not found.']);
 }catch(Throwable $e){error_log('SSHP career API: '.$e->getMessage());out(500,['success'=>false,'error'=>'Career service temporarily unavailable.']);}
