@@ -1,4 +1,13 @@
-# Route SSHP API requests to the PHP backend on shared hosting.
+# SSHP production routing
 RewriteEngine On
+
+# Keep the dedicated School–Teacher recruitment API out of the main API rewrite.
+RewriteRule ^api/career\.php$ api/career.php [L,QSA]
 RewriteCond %{REQUEST_URI} !^/api/index\.php$
 RewriteRule ^api(?:/.*)?$ api/index.php [L,QSA]
+
+# Load the new recruitment UI on the existing HTML homepage without editing the large index.html file.
+<IfModule mod_substitute.c>
+  AddOutputFilterByType SUBSTITUTE text/html
+  Substitute "s|</body>|<script src=\"/career.js?v=20260906-1\" defer></script></body>|i"
+</IfModule>
