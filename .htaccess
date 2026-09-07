@@ -7,9 +7,9 @@ RewriteRule ^api/career\.php(?:/.*)?$ api/career.php [L,QSA]
 RewriteCond %{REQUEST_URI} !^/api/index\.php$
 RewriteRule ^api(?:/.*)?$ api/index.php [L,QSA]
 
-# Load the new recruitment UI and connect the existing Careers navigation
+# Load the new recruitment UI, official contact email, and connect the existing Careers navigation
 # to the Direct Recruitment Portal without editing the large index.html file.
 <IfModule mod_substitute.c>
   AddOutputFilterByType SUBSTITUTE text/html
-  Substitute "s|</body>|<script src=\"/career.js?v=20260907-2\" defer></script><script src=\"/career-nav.js?v=20260907-2\" defer></script><script src=\"/teacher-jobs.js?v=20260907-2\" defer></script></body>|i"
+  Substitute "s|</body>|<script src=\"/career.js?v=20260907-2\" defer></script><script src=\"/career-nav.js?v=20260907-2\" defer></script><script src=\"/teacher-jobs.js?v=20260907-2\" defer></script><script src=\"/contact-email.js?v=20260907-1\" defer></script></body>|i"
 </IfModule>
