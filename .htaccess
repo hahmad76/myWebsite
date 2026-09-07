@@ -7,9 +7,17 @@ RewriteRule ^api/career\.php(?:/.*)?$ api/career.php [L,QSA]
 RewriteCond %{REQUEST_URI} !^/api/index\.php$
 RewriteRule ^api(?:/.*)?$ api/index.php [L,QSA]
 
-# Load the new recruitment UI, official contact email, and connect the existing Careers navigation
-# to the Direct Recruitment Portal without editing the large index.html file.
+# Load SSHP recruitment UI, official contact email, Google Tag Manager,
+# and connect the existing Careers navigation without editing the large HTML files.
 <IfModule mod_substitute.c>
   AddOutputFilterByType SUBSTITUTE text/html
+
+  # Google Tag Manager - place the main script in <head> on every HTML page.
+  Substitute "s|</head>|<!-- Google Tag Manager --><script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-PSM7BTZ5');</script><!-- End Google Tag Manager --></head>|i"
+
+  # Google Tag Manager noscript - place immediately after <body> on every HTML page.
+  Substitute "s|<body>|<body><!-- Google Tag Manager (noscript) --><noscript><iframe src=\"https://www.googletagmanager.com/ns.html?id=GTM-PSM7BTZ5\" height=\"0\" width=\"0\" style=\"display:none;visibility:hidden\"></iframe></noscript><!-- End Google Tag Manager (noscript) -->|i"
+
+  # SSHP recruitment/contact scripts are injected before </body>.
   Substitute "s|</body>|<script src=\"/career.js?v=20260907-2\" defer></script><script src=\"/career-nav.js?v=20260907-2\" defer></script><script src=\"/teacher-jobs.js?v=20260907-2\" defer></script><script src=\"/contact-email.js?v=20260907-1\" defer></script></body>|i"
 </IfModule>
