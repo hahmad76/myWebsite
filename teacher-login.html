@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teacher Sign In | SSHP Career Portal</title>
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f3f7fb;color:#152238}.wrap{max-width:620px;margin:70px auto;padding:20px}.box{background:#fff;border:1px solid #dce6ef;border-radius:16px;padding:30px;box-shadow:0 10px 30px rgba(20,50,80,.08)}h1{color:#075b91;margin-top:0}p{color:#607085;line-height:1.5}label{display:block;font-weight:700;margin:16px 0 7px}input{width:100%;box-sizing:border-box;padding:13px;border:1px solid #cbd7e3;border-radius:8px;font-size:15px}button,.btn{display:inline-block;border:0;border-radius:8px;padding:12px 18px;background:#075f98;color:#fff;font-weight:700;cursor:pointer;text-decoration:none;margin-top:18px}.secondary{background:#3d4858;margin-left:8px}.msg{margin-top:16px;padding:12px;border-radius:8px;display:none}.error{display:block;background:#fff0f0;color:#a21d1d}.ok{display:block;background:#e9f9f0;color:#087443}@media(max-width:650px){.wrap{margin:25px auto}.secondary{margin-left:0}}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="box">
+<div style="font-size:13px;font-weight:800;color:#075f98;letter-spacing:.08em">SSHP SCHOOL–TEACHER DIRECT RECRUITMENT</div>
+<h1>Teacher Sign In</h1>
+<p>Sign in with the teacher account you already created. After successful sign-in, you can return to the vacancy and apply.</p>
+<form id="loginForm">
+<label>Email *</label><input name="email" type="email" required autocomplete="email">
+<label>Password *</label><input name="password" type="password" required autocomplete="current-password">
+<button type="submit">Sign In</button>
+<a class="btn secondary" href="/teacher-jobs.html">Back to Teaching Jobs</a>
+<div id="msg" class="msg" role="status"></div>
+</form>
+</div></div>
+<script>
+const API='/api/career.php',TOKEN='sshpCareerToken';
+const msg=document.getElementById('msg');
+document.getElementById('loginForm').addEventListener('submit',async e=>{e.preventDefault();msg.className='msg';msg.textContent='Signing in…';try{const data=Object.fromEntries(new FormData(e.currentTarget));const r=await fetch(API+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const j=await r.json();if(!r.ok)throw Error(j.error||'Sign in failed.');if(j.user?.role!=='teacher')throw Error('This login is not a teacher account.');localStorage.setItem(TOKEN,j.token);msg.className='msg ok';msg.textContent='Teacher signed in successfully. Returning to Teaching Jobs…';const params=new URLSearchParams(location.search);const back=params.get('return')||'/teacher-jobs.html';setTimeout(()=>location.href=back,500)}catch(x){msg.className='msg error';msg.textContent=x.message||'Unable to sign in.'}});
+</script>
+</body>
+</html>
