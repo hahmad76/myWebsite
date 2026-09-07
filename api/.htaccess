@@ -1,5 +1,20 @@
+# SSHP API directory routing
+# The parent .htaccess normally routes /api/* to api/index.php, but this
+# local rule makes API sub-routes reliable on cPanel/Apache configurations
+# where the parent rewrite does not pass through nested paths correctly.
+RewriteEngine On
+
+# Keep the dedicated recruitment API on career.php.
+RewriteRule ^career\.php(?:/.*)?$ career.php [L,QSA]
+
+# Route all other API paths to the main API front controller.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L,QSA]
+
 # Protect production configuration and SQL files.
 <FilesMatch "^(config\.php|.*\.sql)$">
   Require all denied
 </FilesMatch>
+
 DirectoryIndex index.php
