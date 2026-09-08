@@ -1,13 +1,13 @@
 # SSHP API directory routing
 # The parent .htaccess normally routes /api/* to api/index.php, but this
-# local rule makes API sub-routes reliable on cPanel/Apache configurations
-# where the parent rewrite does not pass through nested paths correctly.
+# local rule makes API sub-routes reliable on cPanel/Apache configurations.
 RewriteEngine On
 
 # Keep the dedicated recruitment API on career.php.
 RewriteRule ^career\.php(?:/.*)?$ career.php [L,QSA]
 
-# Route service orders through the dedicated idempotent order endpoint.
+# Route service requests and service orders to their dedicated idempotent endpoints.
+RewriteRule ^service-requests$ service-requests.php [L,QSA]
 RewriteRule ^orders$ orders.php [L,QSA]
 
 # Route all other API paths to the main API front controller.
