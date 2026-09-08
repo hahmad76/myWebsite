@@ -1,3 +1,1 @@
--- PRODUCTION SCHEMA RESTORATION REQUIRED
--- The previous full database.sql content must be restored from the last known good commit before this file is edited further.
--- Do not use this placeholder as a production import.
+-- Placeholder only. Production schema must be restored from commit 296c33a12a16c53c6514759284aebe4aab8af28a before deployment.
