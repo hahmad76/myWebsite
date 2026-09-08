@@ -1,4 +1,4 @@
-/* SSHP duplicate-order guard: prevents accidental double submission on the public service form. */
+/* SSHP duplicate-submission guard for the public service request form. */
 document.addEventListener("DOMContentLoaded",()=>{
   const form=document.getElementById("service-request");
   if(!form)return;
@@ -19,7 +19,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   });
 
   form.addEventListener("submit",e=>{
-    if(form.querySelector('[name="request_action"]')?.value!=="order")return;
+    const action=form.querySelector('[name="request_action"]')?.value||"service";
+    if(action!=="service"&&action!=="order")return;
     if(locked){
       e.preventDefault();
       e.stopImmediatePropagation();
