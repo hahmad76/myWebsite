@@ -20,6 +20,7 @@ RewriteRule ^api(?:/.*)?$ api/index.php [L,QSA]
   # Inject the site-wide Google AdSense verification script into every HTML page's <head>.
   Substitute "s|</head>|<script async src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8837115524897921\" crossorigin=\"anonymous\"></script></head>|i"
 
-  # Load the site-wide GTM loader, recruitment UI, contact email helper, and duplicate-order guard.
-  Substitute "s|</body>|<script src=\"/gtm.js?v=20260907-1\" defer></script><script src=\"/career.js?v=20260907-2\" defer></script><script src=\"/career-nav.js?v=20260907-2\" defer></script><script src=\"/teacher-jobs.js?v=20260907-2\" defer></script><script src=\"/contact-email.js?v=20260907-1\" defer></script><script src=\"/order-guard.js?v=20260908-2\" defer></script></body>|i"
+  # Load the site-wide GTM loader, recruitment UI, contact email helper, duplicate-order guard,
+  # and final order submission fix.
+  Substitute "s|</body>|<script src=\"/gtm.js?v=20260907-1\" defer></script><script src=\"/career.js?v=20260907-2\" defer></script><script src=\"/career-nav.js?v=20260907-2\" defer></script><script src=\"/teacher-jobs.js?v=20260907-2\" defer></script><script src=\"/contact-email.js?v=20260907-1\" defer></script><script src=\"/order-guard.js?v=20260908-2\" defer></script><script src=\"/order-submit-fix.js?v=20260908-1\" defer></script></body>|i"
 </IfModule>
