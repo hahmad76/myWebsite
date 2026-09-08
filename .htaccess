@@ -5,6 +5,10 @@ RewriteEngine On
 # Also preserve sub-routes such as /api/career.php/health, /api/career.php/vacancies, etc.
 RewriteRule ^api/career\.php(?:/.*)?$ api/career.php [L,QSA]
 
+# Route service requests to the dedicated idempotent endpoint.
+# This prevents duplicate service-request rows and duplicate admin notifications.
+RewriteRule ^api/service-requests$ api/service-requests.php [L,QSA]
+
 # Route service orders to the dedicated idempotent order endpoint.
 # This prevents duplicate database rows and duplicate admin notifications.
 RewriteRule ^api/orders$ api/orders.php [L,QSA]
