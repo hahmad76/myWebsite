@@ -5,8 +5,9 @@ RewriteEngine On
 # Also preserve sub-routes such as /api/career.php/health, /api/career.php/vacancies, etc.
 RewriteRule ^api/career\.php(?:/.*)?$ api/career.php [L,QSA]
 
-# Prevent accidental duplicate service orders before they reach the main API handler.
-RewriteRule ^api/orders$ api/orders-guard.php [L,QSA]
+# Route service orders to the dedicated idempotent order endpoint.
+# This prevents duplicate database rows and duplicate admin notifications.
+RewriteRule ^api/orders$ api/orders.php [L,QSA]
 
 RewriteCond %{REQUEST_URI} !^/api/index\.php$
 RewriteRule ^api(?:/.*)?$ api/index.php [L,QSA]
@@ -20,5 +21,5 @@ RewriteRule ^api(?:/.*)?$ api/index.php [L,QSA]
   Substitute "s|</head>|<script async src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8837115524897921\" crossorigin=\"anonymous\"></script></head>|i"
 
   # Load the site-wide GTM loader, recruitment UI, contact email helper, and duplicate-order guard.
-  Substitute "s|</body>|<script src=\"/gtm.js?v=20260907-1\" defer></script><script src=\"/career.js?v=20260907-2\" defer></script><script src=\"/career-nav.js?v=20260907-2\" defer></script><script src=\"/teacher-jobs.js?v=20260907-2\" defer></script><script src=\"/contact-email.js?v=20260907-1\" defer></script><script src=\"/order-guard.js?v=20260908-1\" defer></script></body>|i"
+  Substitute "s|</body>|<script src=\"/gtm.js?v=20260907-1\" defer></script><script src=\"/career.js?v=20260907-2\" defer></script><script src=\"/career-nav.js?v=20260907-2\" defer></script><script src=\"/teacher-jobs.js?v=20260907-2\" defer></script><script src=\"/contact-email.js?v=20260907-1\" defer></script><script src=\"/order-guard.js?v=20260908-2\" defer></script></body>|i"
 </IfModule>
