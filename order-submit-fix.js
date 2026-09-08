@@ -1,4 +1,4 @@
-/* SSHP order submit fix: route Service Request submissions to the dedicated idempotent order API. */
+/* SSHP submission fix: route service requests and orders to their dedicated idempotent APIs. */
 document.addEventListener("DOMContentLoaded",()=>{
   const form=document.getElementById("service-request");
   if(!form)return;
@@ -18,25 +18,28 @@ document.addEventListener("DOMContentLoaded",()=>{
     if(message){message.textContent="Submitting securely…";message.removeAttribute("data-error");}
 
     const data=Object.fromEntries(new FormData(form).entries());
+    const isOrder=action==="order";
+    const endpoint=isOrder?"/api/orders":"/api/service-requests";
     const payload={
       service:data.service_select,
       name:data.name,
       phone:data.phone,
       email:data.email||"",
       requirement:data.requirement||"",
-      request_action:"order"
+      action:isOrder?"order":"service",
+      request_action:action
     };
 
     try{
-      const r=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       let j={};
       try{j=await r.json();}catch{}
-      if(!r.ok)throw new Error(j.error||"The server could not process the order.");
+      if(!r.ok)throw new Error(j.error||"The server could not process the request.");
 
       if(message){
         message.textContent=j.duplicate
-          ? `This order was already received. Order ID: ${j.id}`
-          : `Your order has been received successfully. Order ID: ${j.id}`;
+          ? `This request was already received. ID: ${j.id}`
+          : `${isOrder?"Your order":"Your service request"} has been received successfully. ID: ${j.id}`;
       }
       form.reset();
       const actionInput=form.querySelector('[name="request_action"]');
