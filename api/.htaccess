@@ -7,6 +7,9 @@ RewriteEngine On
 # Keep the dedicated recruitment API on career.php.
 RewriteRule ^career\.php(?:/.*)?$ career.php [L,QSA]
 
+# Route service orders through the duplicate-order guard before the main API.
+RewriteRule ^orders$ orders-guard.php [L,QSA]
+
 # Route all other API paths to the main API front controller.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
