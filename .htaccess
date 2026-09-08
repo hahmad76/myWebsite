@@ -4,6 +4,10 @@ RewriteEngine On
 # Keep the dedicated School–Teacher recruitment API out of the main API rewrite.
 # Also preserve sub-routes such as /api/career.php/health, /api/career.php/vacancies, etc.
 RewriteRule ^api/career\.php(?:/.*)?$ api/career.php [L,QSA]
+
+# Prevent accidental duplicate service orders before they reach the main API handler.
+RewriteRule ^api/orders$ api/orders-guard.php [L,QSA]
+
 RewriteCond %{REQUEST_URI} !^/api/index\.php$
 RewriteRule ^api(?:/.*)?$ api/index.php [L,QSA]
 
