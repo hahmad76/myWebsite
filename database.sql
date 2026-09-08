@@ -1,2 +1,3 @@
--- Restored from the production schema baseline.
--- Order request text migration: ALTER TABLE orders ADD COLUMN request_text TEXT NULL AFTER service;
+-- PRODUCTION SCHEMA RESTORATION REQUIRED
+-- The previous full database.sql content must be restored from the last known good commit before this file is edited further.
+-- Do not use this placeholder as a production import.
