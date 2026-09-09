@@ -2,9 +2,11 @@
 declare(strict_types=1);
 
 /* SSHP production order endpoint.
- * One identical submission creates one order and one notification.
- * Requires the orders.request_text column from /order-request-text.sql.
- * Every new order is also emailed immediately to the SSHP owner.
+ * - Saves the order in MySQL.
+ * - Sends the complete customer submission to hahmad76@gmail.com.
+ * - Does NOT create an admin/cPanel notification row, preventing duplicate
+ *   dashboard notifications. Email is the owner notification channel.
+ * - School/teacher job-seeker interactions do not use this endpoint.
  */
 
 function og_env(string $key, ?string $default=null): ?string {
@@ -25,6 +27,8 @@ $config=array_merge([
     'db_user'=>og_env('DB_USER',''),
     'db_pass'=>og_env('DB_PASS','')
 ],$config);
+
+require_once __DIR__.'/owner-email.php';
 
 function og_json(int $status,array $data):never{
     http_response_code($status);
@@ -53,45 +57,6 @@ function og_clean(mixed $v):mixed{
 
 function og_id():string{return bin2hex(random_bytes(16));}
 function og_now():string{return gmdate('Y-m-d H:i:s');}
-
-function og_mail_order(array $order):void{
-    $to='hahamd76@gmail.com';
-    $subject='SSHP — New Website Order #'.$order['id'];
-    $lines=[
-        'SCHOOLS SOLUTIONS HUB PAKISTAN (SSHP)',
-        'NEW WEBSITE SERVICE ORDER',
-        str_repeat('=',48),
-        'Order ID: '.$order['id'],
-        'Date/Time (UTC): '.$order['created_at'],
-        '',
-        'CUSTOMER DETAILS',
-        'Name: '.$order['name'],
-        'Phone: '.$order['phone'],
-        'Email: '.($order['email']!==''?$order['email']:'Not provided'),
-        '',
-        'ORDER DETAILS',
-        'Service: '.$order['service'],
-        'Customer Request / Requirement: '.($order['request_text']!==''?$order['request_text']:'Not provided'),
-        'Quote ID: '.($order['quote_id']!==''?$order['quote_id']:'Not provided'),
-        'Amount: '.($order['amount_minor']!==null && $order['amount_minor']!=='' ? $order['amount_minor'].' '.$order['currency'] : 'Not specified'),
-        'Currency: '.$order['currency'],
-        '',
-        'Please contact the customer regarding this order.',
-        '',
-        'This email was generated automatically by the SSHP website.'
-    ];
-    $body=implode("\r\n",$lines);
-    $headers=[
-        'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset=UTF-8',
-        'From: SSHP Website <no-reply@sshpk.com.pk>'
-    ];
-    if($order['email']!=='' && filter_var($order['email'],FILTER_VALIDATE_EMAIL)){
-        $headers[]='Reply-To: '.$order['email'];
-    }
-    $sent=@mail($to,$subject,$body,implode("\r\n",$headers));
-    if(!$sent) error_log('SSHP order email could not be handed to the hosting mail system for order '.$order['id']);
-}
 
 if(($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST'){
     og_json(405,['success'=>false,'error'=>'Method not allowed']);
@@ -124,7 +89,7 @@ try{
         PDO::ATTR_EMULATE_PREPARES=>false
     ]);
 
-    /* The lock is held on this same PDO connection until the insert is complete. */
+    /* Serialize identical submissions on the database connection. */
     $fingerprint=hash('sha256',json_encode([
         strtolower($service),strtolower($name),$phone,strtolower($email),$requestText,
         $quoteId,$amountMinor,$currency
@@ -136,6 +101,8 @@ try{
     if(!$locked) og_json(503,['success'=>false,'error'=>'The order is being processed. Please wait a moment and try again.']);
 
     try{
+        /* Idempotency window: the same request submitted again within 120 seconds
+         * returns the original ID and does not send a second email. */
         $existingStmt=$pdo->prepare(
             'SELECT id FROM orders WHERE customer_name=? AND phone=? AND COALESCE(email,\'\')=? AND service=? AND COALESCE(request_text,\'\')=? AND created_at >= UTC_TIMESTAMP() - INTERVAL 120 SECOND ORDER BY created_at DESC LIMIT 1'
         );
@@ -168,31 +135,27 @@ try{
             $now
         ]);
 
-        $notificationId=og_id();
-        $message='New service order from '.$name.' ('.$phone.') for '.$service.'.';
-        if($requestText!=='') $message.=' Customer request: '.$requestText;
-        $notify=$pdo->prepare(
-            'INSERT INTO notifications (id,type,title,message,recipient,entity_id,read_flag,created_at) VALUES (?,?,?,?,?,?,0,?)'
-        );
-        $notify->execute([$notificationId,'order','New Service Order',$message,'admin',$id,$now]);
+        /* Include every submitted form field in the owner email, not only the
+         * fields currently mapped to the orders table. This protects against
+         * losing newly-added customer fields in future website updates. */
+        $fields=[];
+        foreach($b as $key=>$value){
+            if($key==='request_action') continue;
+            $label=ucwords(str_replace(['_','-'],' ',(string)$key));
+            $fields[$label]=$value;
+        }
+        $fields['Order ID']=$id;
+        $fields['Submitted At (UTC)']=$now;
+        $fields['Database Status']='pending';
 
-        /* Email delivery is intentionally outside the success/failure path for the order itself.
-         * The order must remain saved even if the hosting mail service is temporarily unavailable. */
-        og_mail_order([
-            'id'=>$id,
-            'created_at'=>$now,
-            'name'=>$name,
-            'phone'=>$phone,
-            'email'=>$email,
-            'service'=>$service,
-            'request_text'=>$requestText,
-            'quote_id'=>$quoteId,
-            'amount_minor'=>$amountMinor,
-            'currency'=>$currency
-        ]);
+        $sent=sshp_mail_owner('New Website Order #'.$id,'NEW WEBSITE CUSTOMER ORDER',$fields);
+        if(!$sent){
+            error_log('SSHP order email could not be handed to the hosting mail system for order '.$id);
+        }
 
         og_json(201,[
             'success'=>true,'ok'=>true,'id'=>$id,'duplicate'=>false,
+            'email_handed_to_mail_system'=>$sent,
             'message'=>'Your service order has been received successfully.'
         ]);
     } finally {
