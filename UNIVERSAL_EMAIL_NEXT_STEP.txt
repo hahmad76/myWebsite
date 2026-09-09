@@ -1,0 +1,1 @@
+The universal email system files are ready in the main branch. Upload universal-owner-email.js to public_html, api/owner-email-public.php to public_html/api, and replace public_html/.htaccess with the latest version. Then Ctrl+F5 and test a Students Corner submission. Recruitment remains excluded.
