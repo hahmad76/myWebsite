@@ -49,7 +49,7 @@ function og_body():array{
 function og_clean(mixed $v):mixed{
     if(is_array($v)){
         $o=[];
-        foreach($v as $k=>$x) $o[(string)$k]=og_clean($x);
+        foreach($v as $k=>$x)$o[(string)$k]=og_clean($x);
         return $o;
     }
     return is_string($v) ? trim($v) : $v;
@@ -71,15 +71,15 @@ $requestText=trim((string)($b['request_text'] ?? $b['request'] ?? $b['requiremen
 $quoteId=trim((string)($b['quote_id'] ?? ''));
 $currency=trim((string)($b['currency'] ?? 'PKR')) ?: 'PKR';
 $amountMinor=$b['amount_minor'] ?? null;
-if($amountMinor==='') $amountMinor=null;
+if($amountMinor==='')$amountMinor=null;
 
 $errors=[];
-if($service==='') $errors[]='service is required';
-if($name==='') $errors[]='name is required';
-if($phone==='') $errors[]='phone is required';
-if($email!=='' && !filter_var($email,FILTER_VALIDATE_EMAIL)) $errors[]='email is invalid';
-if($phone!=='' && !preg_match('/^[+()\-\s\d]{7,40}$/',$phone)) $errors[]='phone is invalid';
-if($errors) og_json(422,['success'=>false,'error'=>'Validation failed','details'=>$errors]);
+if($service==='')$errors[]='service is required';
+if($name==='')$errors[]='name is required';
+if($phone==='')$errors[]='phone is required';
+if($email!=='' && !filter_var($email,FILTER_VALIDATE_EMAIL))$errors[]='email is invalid';
+if($phone!=='' && !preg_match('/^[+()\-\s\d]{7,40}$/',$phone))$errors[]='phone is invalid';
+if($errors)og_json(422,['success'=>false,'error'=>'Validation failed','details'=>$errors]);
 
 try{
     $dsn='mysql:host='.$config['db_host'].';port='.$config['db_port'].';dbname='.$config['db_name'].';charset=utf8mb4';
@@ -89,7 +89,6 @@ try{
         PDO::ATTR_EMULATE_PREPARES=>false
     ]);
 
-    /* Serialize identical submissions on the database connection. */
     $fingerprint=hash('sha256',json_encode([
         strtolower($service),strtolower($name),$phone,strtolower($email),$requestText,
         $quoteId,$amountMinor,$currency
@@ -98,11 +97,11 @@ try{
     $lockStmt=$pdo->prepare('SELECT GET_LOCK(?,5)');
     $lockStmt->execute([$lockName]);
     $locked=((int)$lockStmt->fetchColumn()===1);
-    if(!$locked) og_json(503,['success'=>false,'error'=>'The order is being processed. Please wait a moment and try again.']);
+    if(!$locked)og_json(503,['success'=>false,'error'=>'The order is being processed. Please wait a moment and try again.']);
 
     try{
-        /* Idempotency window: the same request submitted again within 120 seconds
-         * returns the original ID and does not send a second email. */
+        /* Idempotency window: identical submission within 120 seconds returns
+         * the original ID and does not create another database row or email. */
         $existingStmt=$pdo->prepare(
             'SELECT id FROM orders WHERE customer_name=? AND phone=? AND COALESCE(email,\'\')=? AND service=? AND COALESCE(request_text,\'\')=? AND created_at >= UTC_TIMESTAMP() - INTERVAL 120 SECOND ORDER BY created_at DESC LIMIT 1'
         );
@@ -121,50 +120,44 @@ try{
             'INSERT INTO orders (id,quote_id,customer_name,phone,email,service,request_text,amount_minor,currency,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
         );
         $insert->execute([
-            $id,
-            $quoteId!=='' ? $quoteId : null,
-            $name,
-            $phone,
-            $email!=='' ? $email : null,
-            $service,
-            $requestText!=='' ? $requestText : null,
-            $amountMinor,
-            $currency,
-            'pending',
-            $now,
-            $now
+            $id,$quoteId!=='' ? $quoteId : null,$name,$phone,
+            $email!=='' ? $email : null,$service,
+            $requestText!=='' ? $requestText : null,$amountMinor,$currency,
+            'pending',$now,$now
         ]);
 
-        /* Include every submitted form field in the owner email, not only the
-         * fields currently mapped to the orders table. This protects against
-         * losing newly-added customer fields in future website updates. */
+        /* Start with every field from the actual HTML form. Then add any
+         * server-recognized fields that may not have been present in the form. */
+        $submitted=is_array($b['submitted_fields'] ?? null) ? $b['submitted_fields'] : [];
         $fields=[];
-        foreach($b as $key=>$value){
-            if($key==='request_action') continue;
+        foreach($submitted as $key=>$value){
             $label=ucwords(str_replace(['_','-'],' ',(string)$key));
             $fields[$label]=$value;
+        }
+        foreach($b as $key=>$value){
+            if($key==='submitted_fields' || $key==='request_action')continue;
+            $label=ucwords(str_replace(['_','-'],' ',(string)$key));
+            if(!array_key_exists($label,$fields))$fields[$label]=$value;
         }
         $fields['Order ID']=$id;
         $fields['Submitted At (UTC)']=$now;
         $fields['Database Status']='pending';
 
         $sent=sshp_mail_owner('New Website Order #'.$id,'NEW WEBSITE CUSTOMER ORDER',$fields);
-        if(!$sent){
-            error_log('SSHP order email could not be handed to the hosting mail system for order '.$id);
-        }
+        if(!$sent)error_log('SSHP order email could not be handed to the hosting mail system for order '.$id);
 
         og_json(201,[
             'success'=>true,'ok'=>true,'id'=>$id,'duplicate'=>false,
             'email_handed_to_mail_system'=>$sent,
             'message'=>'Your service order has been received successfully.'
         ]);
-    } finally {
+    }finally{
         $pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$lockName]);
     }
-} catch(PDOException $e){
+}catch(PDOException $e){
     error_log('SSHP order endpoint database error: '.$e->getMessage());
     og_json(500,['success'=>false,'error'=>'Unable to save the service order right now.']);
-} catch(Throwable $e){
+}catch(Throwable $e){
     error_log('SSHP order endpoint error: '.$e->getMessage());
     og_json(500,['success'=>false,'error'=>'Unable to process the service order right now.']);
 }
