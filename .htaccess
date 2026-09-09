@@ -13,6 +13,9 @@ RewriteRule ^api/service-requests$ api/service-requests.php [L,QSA]
 # This prevents duplicate database rows and duplicate admin notifications.
 RewriteRule ^api/orders$ api/orders.php [L,QSA]
 
+# Universal owner-email endpoint for normal public customer submissions.
+RewriteRule ^api/owner-email-public$ api/owner-email-public.php [L,QSA]
+
 RewriteCond %{REQUEST_URI} !^/api/index\.php$
 RewriteRule ^api(?:/.*)?$ api/index.php [L,QSA]
 
@@ -25,6 +28,7 @@ RewriteRule ^api(?:/.*)?$ api/index.php [L,QSA]
   Substitute "s|</head>|<script async src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8837115524897921\" crossorigin=\"anonymous\"></script></head>|i"
 
   # Load the site-wide GTM loader, recruitment UI, contact email helper, duplicate-submission guard,
-  # and final service/order submission fix. Version query strings force browsers to load the corrected files.
-  Substitute "s|</body>|<script src=\"/gtm.js?v=20260907-1\" defer></script><script src=\"/career.js?v=20260907-2\" defer></script><script src=\"/career-nav.js?v=20260907-2\" defer></script><script src=\"/teacher-jobs.js?v=20260907-2\" defer></script><script src=\"/contact-email.js?v=20260907-1\" defer></script><script src=\"/order-guard.js?v=20260908-3\" defer></script><script src=\"/order-submit-fix.js?v=20260908-2\" defer></script></body>|i"
+  # final service/order submission fix, and universal normal-customer owner email sender.
+  # Version query strings force browsers to load the corrected files.
+  Substitute "s|</body>|<script src=\"/gtm.js?v=20260907-1\" defer></script><script src=\"/career.js?v=20260907-2\" defer></script><script src=\"/career-nav.js?v=20260907-2\" defer></script><script src=\"/teacher-jobs.js?v=20260907-2\" defer></script><script src=\"/contact-email.js?v=20260907-1\" defer></script><script src=\"/order-guard.js?v=20260908-3\" defer></script><script src=\"/order-submit-fix.js?v=20260908-2\" defer></script><script src=\"/universal-owner-email.js?v=20260909-1\" defer></script></body>|i"
 </IfModule>
