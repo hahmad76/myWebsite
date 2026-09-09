@@ -2,9 +2,11 @@
 declare(strict_types=1);
 
 /* SSHP production service-request endpoint.
- * One identical submission creates one service request and one admin notification.
- * Duplicate submissions received within 120 seconds are acknowledged without
- * creating another database row or notification.
+ * - Saves the customer request in MySQL.
+ * - Sends the complete submitted details to hahmad76@gmail.com.
+ * - Does NOT create an admin/cPanel notification row, preventing duplicate
+ *   dashboard notifications.
+ * - School/teacher job-seeker interactions do NOT use this endpoint.
  */
 
 function sr_env(string $key, ?string $default=null): ?string {
@@ -25,6 +27,8 @@ $config=array_merge([
     'db_user'=>sr_env('DB_USER',''),
     'db_pass'=>sr_env('DB_PASS','')
 ],$config);
+
+require_once __DIR__.'/owner-email.php';
 
 function sr_json(int $status,array $data):never {
     http_response_code($status);
@@ -84,7 +88,6 @@ try{
         PDO::ATTR_EMULATE_PREPARES=>false
     ]);
 
-    /* Serialize identical submissions on the database connection. */
     $fingerprint=hash('sha256',json_encode([
         strtolower($service),strtolower($name),$phone,strtolower($email),$requirement,$action
     ],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
@@ -95,8 +98,8 @@ try{
     if(!$locked) sr_json(503,['success'=>false,'error'=>'The request is being processed. Please wait a moment and try again.']);
 
     try{
-        /* Idempotency window: the same request submitted again within 120 seconds
-         * returns the original ID and does not create another notification. */
+        /* Idempotency window: repeated identical submission within 120 seconds
+         * returns the original ID and does not send another email. */
         $existingStmt=$pdo->prepare(
             'SELECT id FROM service_requests WHERE name=? AND phone=? AND COALESCE(email,\'\')=? AND service=? AND requirement=? AND action=? AND created_at >= UTC_TIMESTAMP() - INTERVAL 120 SECOND ORDER BY created_at DESC LIMIT 1'
         );
@@ -104,10 +107,7 @@ try{
         $existing=$existingStmt->fetch();
         if($existing){
             sr_json(200,[
-                'success'=>true,
-                'ok'=>true,
-                'id'=>$existing['id'],
-                'duplicate'=>true,
+                'success'=>true,'ok'=>true,'id'=>$existing['id'],'duplicate'=>true,
                 'message'=>'Your service request has already been received. Please do not submit it again.'
             ]);
         }
@@ -118,38 +118,30 @@ try{
             'INSERT INTO service_requests (id,service,name,phone,email,requirement,action,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
         );
         $insert->execute([
-            $id,
-            $service,
-            $name,
-            $phone,
+            $id,$service,$name,$phone,
             $email!=='' ? $email : null,
-            $requirement,
-            $action,
-            'received',
-            $now,
-            $now
+            $requirement,$action,'received',$now,$now
         ]);
 
-        $notificationId=sr_id();
-        $message='New service request from '.$name.' ('.$phone.') for '.$service.'.';
-        $notify=$pdo->prepare(
-            'INSERT INTO notifications (id,type,title,message,recipient,entity_id,read_flag,created_at) VALUES (?,?,?,?,?,?,0,?)'
-        );
-        $notify->execute([
-            $notificationId,
-            'service_request',
-            'New Service Request',
-            $message,
-            'admin',
-            $id,
-            $now
-        ]);
+        /* Send every submitted field, including future fields added to the form. */
+        $fields=[];
+        foreach($b as $key=>$value){
+            if($key==='request_action') continue;
+            $label=ucwords(str_replace(['_','-'],' ',(string)$key));
+            $fields[$label]=$value;
+        }
+        $fields['Request ID']=$id;
+        $fields['Submitted At (UTC)']=$now;
+        $fields['Database Status']='received';
+
+        $sent=sshp_mail_owner('New Website Service Request #'.$id,'NEW WEBSITE CUSTOMER SERVICE REQUEST',$fields);
+        if(!$sent){
+            error_log('SSHP service-request email could not be handed to the hosting mail system for request '.$id);
+        }
 
         sr_json(201,[
-            'success'=>true,
-            'ok'=>true,
-            'id'=>$id,
-            'duplicate'=>false,
+            'success'=>true,'ok'=>true,'id'=>$id,'duplicate'=>false,
+            'email_handed_to_mail_system'=>$sent,
             'message'=>'Your service request has been received successfully.'
         ]);
     } finally {
