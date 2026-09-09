@@ -4,6 +4,7 @@ declare(strict_types=1);
 /* SSHP production order endpoint.
  * One identical submission creates one order and one notification.
  * Requires the orders.request_text column from /order-request-text.sql.
+ * Every new order is also emailed immediately to the SSHP owner.
  */
 
 function og_env(string $key, ?string $default=null): ?string {
@@ -52,6 +53,45 @@ function og_clean(mixed $v):mixed{
 
 function og_id():string{return bin2hex(random_bytes(16));}
 function og_now():string{return gmdate('Y-m-d H:i:s');}
+
+function og_mail_order(array $order):void{
+    $to='hahamd76@gmail.com';
+    $subject='SSHP — New Website Order #'.$order['id'];
+    $lines=[
+        'SCHOOLS SOLUTIONS HUB PAKISTAN (SSHP)',
+        'NEW WEBSITE SERVICE ORDER',
+        str_repeat('=',48),
+        'Order ID: '.$order['id'],
+        'Date/Time (UTC): '.$order['created_at'],
+        '',
+        'CUSTOMER DETAILS',
+        'Name: '.$order['name'],
+        'Phone: '.$order['phone'],
+        'Email: '.($order['email']!==''?$order['email']:'Not provided'),
+        '',
+        'ORDER DETAILS',
+        'Service: '.$order['service'],
+        'Customer Request / Requirement: '.($order['request_text']!==''?$order['request_text']:'Not provided'),
+        'Quote ID: '.($order['quote_id']!==''?$order['quote_id']:'Not provided'),
+        'Amount: '.($order['amount_minor']!==null && $order['amount_minor']!=='' ? $order['amount_minor'].' '.$order['currency'] : 'Not specified'),
+        'Currency: '.$order['currency'],
+        '',
+        'Please contact the customer regarding this order.',
+        '',
+        'This email was generated automatically by the SSHP website.'
+    ];
+    $body=implode("\r\n",$lines);
+    $headers=[
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+        'From: SSHP Website <no-reply@sshpk.com.pk>'
+    ];
+    if($order['email']!=='' && filter_var($order['email'],FILTER_VALIDATE_EMAIL)){
+        $headers[]='Reply-To: '.$order['email'];
+    }
+    $sent=@mail($to,$subject,$body,implode("\r\n",$headers));
+    if(!$sent) error_log('SSHP order email could not be handed to the hosting mail system for order '.$order['id']);
+}
 
 if(($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST'){
     og_json(405,['success'=>false,'error'=>'Method not allowed']);
@@ -135,6 +175,21 @@ try{
             'INSERT INTO notifications (id,type,title,message,recipient,entity_id,read_flag,created_at) VALUES (?,?,?,?,?,?,0,?)'
         );
         $notify->execute([$notificationId,'order','New Service Order',$message,'admin',$id,$now]);
+
+        /* Email delivery is intentionally outside the success/failure path for the order itself.
+         * The order must remain saved even if the hosting mail service is temporarily unavailable. */
+        og_mail_order([
+            'id'=>$id,
+            'created_at'=>$now,
+            'name'=>$name,
+            'phone'=>$phone,
+            'email'=>$email,
+            'service'=>$service,
+            'request_text'=>$requestText,
+            'quote_id'=>$quoteId,
+            'amount_minor'=>$amountMinor,
+            'currency'=>$currency
+        ]);
 
         og_json(201,[
             'success'=>true,'ok'=>true,'id'=>$id,'duplicate'=>false,
