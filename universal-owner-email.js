@@ -3,7 +3,7 @@
  * Recruitment/contact workflows are intentionally excluded.
  */
 document.addEventListener('DOMContentLoaded',()=>{
-  const OWNER_ENDPOINT='/api/owner-email.php';
+  const OWNER_ENDPOINT='/api/owner-email-public.php';
   const EXCLUDED_TYPES=new Set(['Teacher Career Interest','School Vacancy','Recruitment','Career Contact','Direct Recruitment']);
   const forms=[...document.querySelectorAll('form')].filter(form=>{
     if(form.id==='service-request') return false; // handled by order-submit-fix.js
