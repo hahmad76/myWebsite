@@ -1,4 +1,4 @@
-/* SSHP submission fix: route service requests and orders to their dedicated idempotent APIs. */
+/* SSHP submission fix: route customer service requests and orders to their dedicated idempotent APIs. */
 document.addEventListener("DOMContentLoaded",()=>{
   const form=document.getElementById("service-request");
   if(!form)return;
@@ -17,6 +17,8 @@ document.addEventListener("DOMContentLoaded",()=>{
     if(button){button.disabled=true;button.setAttribute("aria-disabled","true");button.dataset.originalText=button.dataset.originalText||button.textContent||"Submit Request →";button.textContent="Submitting securely…";}
     if(message){message.textContent="Submitting securely…";message.removeAttribute("data-error");}
 
+    /* Capture every field currently present in the customer form. This means
+     * newly-added fields are also forwarded to the owner email automatically. */
     const data=Object.fromEntries(new FormData(form).entries());
     const isOrder=action==="order";
     const endpoint=isOrder?"/api/orders":"/api/service-requests";
@@ -27,7 +29,8 @@ document.addEventListener("DOMContentLoaded",()=>{
       email:data.email||"",
       requirement:data.requirement||"",
       action:isOrder?"order":"service",
-      request_action:action
+      request_action:action,
+      submitted_fields:data
     };
 
     try{
