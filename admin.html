@@ -61,7 +61,8 @@
   const renderRecords = (rows, collection) => {
     $("records").innerHTML = rows.length ? rows.map(row => {
       const paymentControls = collection === "payments" ? `<div class="verify"><strong>Status: ${escapeHtml(row.status || "")}</strong><br><button data-payment="${escapeHtml(row.id)}" data-status="verified">Verify Payment</button><button data-payment="${escapeHtml(row.id)}" data-status="rejected">Reject Payment</button></div>` : "";
-      return `<div class="item"><strong>${escapeHtml(row.id || "")}</strong><pre>${escapeHtml(JSON.stringify(row,null,2))}</pre>${paymentControls}</div>`;
+      const announcementControls = collection === "announcements" ? `<div class="verify"><strong>Status: ${escapeHtml(row.status || "published")}</strong><br><button data-announcement-status="${escapeHtml(row.id)}" data-status="${String(row.status || "published").toLowerCase()==="published" ? "inactive" : "published"}">${String(row.status || "published").toLowerCase()==="published" ? "Hide Announcement" : "Publish Announcement"}</button><button data-announcement-delete="${escapeHtml(row.id)}">Delete Permanently</button></div>` : "";
+      return `<div class="item"><strong>${escapeHtml(row.id || "")}</strong><pre>${escapeHtml(JSON.stringify(row,null,2))}</pre>${paymentControls}${announcementControls}</div>`;
     }).join("") : "<p>No records.</p>";
     document.querySelectorAll("[data-payment]").forEach(button => button.onclick = async () => {
       const id=button.dataset.payment,status=button.dataset.status;
@@ -69,6 +70,15 @@
       try { await api(`/admin/collections/payments/${encodeURIComponent(id)}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})}); const r=await api("/admin/collections/payments"); renderRecords(r.data,"payments"); await loadNotifications(); } catch(err) { alert(err.message); }
     });
   };
+  document.querySelectorAll("[data-announcement-status]").forEach(button => button.onclick = async () => {
+    const id=button.dataset.announcementStatus,status=button.dataset.status;
+    try { await api(`/admin/collections/announcements/${encodeURIComponent(id)}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})}); const r=await api("/admin/collections/announcements"); renderRecords(r.data,"announcements"); } catch(err) { alert(err.message); }
+  });
+  document.querySelectorAll("[data-announcement-delete]").forEach(button => button.onclick = async () => {
+    const id=button.dataset.announcementDelete;
+    if(!confirm("Delete this announcement permanently? This action cannot be undone.")) return;
+    try { await api(`/admin/collections/announcements/${encodeURIComponent(id)}`,{method:"DELETE"}); const r=await api("/admin/collections/announcements"); renderRecords(r.data,"announcements"); const d=await api("/admin/dashboard"); renderCounts(d.data.counts); } catch(err) { alert(err.message); }
+  });
   function renderNewSubmissionAlert(){
     const unread = latestNotifications.filter(x => !x.read).length;
     $("new-submissions-count").textContent = unread;
